@@ -96,13 +96,25 @@ npx eas-cli@latest submit --platform android
 ```
 (compte Google Play Console, 25 $ une fois).
 
-## Version navigateur
+## Version web sur Netlify + icône sur l’écran d’accueil de l’iPhone
 
 ```bash
-npx expo export --platform web
+npm run build:netlify     # crée caisse-resto-netlify.zip
 ```
-Le dossier `dist/` peut être hébergé sur n’importe quel hébergeur statique ; sur téléphone,
-« Ajouter à l’écran d’accueil » donne une icône comme une application.
+
+1. Sur [app.netlify.com/drop](https://app.netlify.com/drop), déposez `caisse-resto-netlify.zip`
+   (ou le dossier `dist/`). Créez un compte Netlify gratuit : sans compte, le site est supprimé
+   au bout d’une heure.
+2. Ouvrez l’adresse Netlify dans **Safari** sur l’iPhone.
+3. Bouton **Partager** → **Sur l’écran d’accueil** → **Ajouter**.
+
+L’icône « Caisse » s’ouvre en plein écran, sans la barre de Safari.
+Pour une mise à jour, refaites `npm run build:netlify` et déposez le nouveau zip dans
+**Deploys** du même site Netlify : l’adresse et l’icône restent les mêmes.
+
+Fichiers propres à cette version dans `public/` : icônes, `manifest.json`, page `index.html`
+adaptée à l’iPhone, `_redirects` (pour que les liens internes fonctionnent sur Netlify)
+et `_headers` (mises à jour prises en compte immédiatement).
 
 ## Limite actuelle : un appareil = ses propres données
 

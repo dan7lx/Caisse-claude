@@ -29,7 +29,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test \"src/**/*.test.ts\""
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "build:web": "expo export --platform web --output-dir dist",
+    "build:netlify": "npm run build:web && rm -f caisse-resto-netlify.zip && cd dist && zip -qr ../caisse-resto-netlify.zip ."
   },
   "private": true
 }

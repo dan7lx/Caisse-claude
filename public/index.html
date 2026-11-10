@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- viewport-fit=cover : utilise tout l'écran de l'iPhone (encoche, barre d'accueil) -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, shrink-to-fit=no"
+    />
+    <title>Caisse Resto</title>
+
+    <!-- Application ajoutée à l'écran d'accueil iOS : plein écran, sans barre Safari -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Caisse" />
+    <meta name="application-name" content="Caisse Resto" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        background-color: #f3f4f6;
+      }
+      body {
+        overflow: hidden;
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-text-size-adjust: 100%;
+        touch-action: manipulation;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript>Activez JavaScript pour utiliser Caisse Resto.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
