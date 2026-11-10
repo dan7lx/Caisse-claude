@@ -1,4 +1,7 @@
-import type { AppState, LineStatus, Order, OrderLine, PaymentMethod, Station } from './types';
+import type { AppState, LineStatus, Order, OrderLine, PaymentMethod, Station, Table } from './types';
+
+/** Libellé d'une commande à partir du nom de la table (« 5 » → « Table 5 »). */
+export const tableLabel = (t: Table) => (/^\d+$/.test(t.name) ? `Table ${t.name}` : t.name);
 
 export const lineTotal = (line: OrderLine) => line.unitPrice * line.qty;
 

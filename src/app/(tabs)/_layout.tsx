@@ -1,10 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import type { ColorValue } from 'react-native';
+import { View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { HeaderTitle, TeamButton } from '../../components/HeaderParts';
+import { ReminderBanner } from '../../components/ReminderBanner';
+import { licenseStatus } from '../../license/license';
 import { kitchenTickets, openOrders } from '../../store/selectors';
-import { useStore } from '../../store/StoreProvider';
-import { colors } from '../../theme';
+import { useNow, useStore } from '../../store/StoreProvider';
+import { colors, headerStyle } from '../../theme';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -15,52 +20,68 @@ function tabIcon(name: IoniconName) {
 }
 
 export default function TabsLayout() {
-  const { state } = useStore();
+  const { state, device } = useStore();
+  const insets = useSafeAreaInsets();
+  const now = useNow(15000);
+  const kitchenOnly = device.role === 'cuisine';
   const readyToServe = openOrders(state).filter((o) => o.lines.some((l) => l.status === 'pret')).length;
-  const kitchenCount =
-    kitchenTickets(state, 'cuisine').active.length + kitchenTickets(state, 'bar').active.length;
+  const kitchenCount = kitchenTickets(state, 'cuisine').active.length + kitchenTickets(state, 'bar').active.length;
+  // Le bandeau de rappel occupe déjà la zone de la barre d'état.
+  const bannerVisible = licenseStatus(state.license, now).inReminderWindow;
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontWeight: '600' },
-        headerTitleStyle: { fontWeight: '800' },
-        headerStyle: { backgroundColor: colors.card },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Tables',
-          headerTitle: state.settings.restaurantName,
-          tabBarIcon: tabIcon('grid-outline'),
+    <View style={{ flex: 1, backgroundColor: colors.ink }}>
+      <ReminderBanner />
+      <Tabs
+        screenOptions={{
+          ...headerStyle,
+          headerStatusBarHeight: bannerVisible ? 0 : undefined,
+          headerRight: () => <TeamButton />,
+          sceneStyle: { backgroundColor: colors.bg },
+          tabBarStyle: { backgroundColor: colors.ink, borderTopColor: colors.ink3, height: 60 + insets.bottom },
+          tabBarActiveTintColor: colors.gold,
+          tabBarInactiveTintColor: colors.onDarkMuted,
+          tabBarLabelStyle: { fontWeight: '700', fontSize: 11, letterSpacing: 0.3 },
+          tabBarBadgeStyle: { backgroundColor: colors.ready, color: colors.ink, fontWeight: '800' },
         }}
-      />
-      <Tabs.Screen
-        name="commandes"
-        options={{
-          title: 'Commandes',
-          tabBarBadge: readyToServe || undefined,
-          tabBarIcon: tabIcon('receipt-outline'),
-        }}
-      />
-      <Tabs.Screen
-        name="cuisine"
-        options={{
-          title: 'Cuisine / Bar',
-          tabBarBadge: kitchenCount || undefined,
-          tabBarIcon: tabIcon('flame-outline'),
-        }}
-      />
-      <Tabs.Screen
-        name="gestion"
-        options={{
-          title: 'Gestion',
-          tabBarIcon: tabIcon('settings-outline'),
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Salle',
+            href: kitchenOnly ? null : undefined,
+            headerTitle: () => <HeaderTitle title={state.settings.restaurantName} subtitle="Plan de salle" />,
+            tabBarIcon: tabIcon('grid'),
+          }}
+        />
+        <Tabs.Screen
+          name="commandes"
+          options={{
+            title: 'Commandes',
+            href: kitchenOnly ? null : undefined,
+            headerTitle: () => <HeaderTitle title="Commandes" subtitle="En cours" />,
+            tabBarBadge: readyToServe || undefined,
+            tabBarIcon: tabIcon('receipt'),
+          }}
+        />
+        <Tabs.Screen
+          name="cuisine"
+          options={{
+            title: 'Cuisine / Bar',
+            headerTitle: () => <HeaderTitle title="Cuisine & Bar" subtitle="Tickets" />,
+            tabBarBadge: kitchenCount || undefined,
+            tabBarIcon: tabIcon('flame'),
+          }}
+        />
+        <Tabs.Screen
+          name="gestion"
+          options={{
+            title: 'Gestion',
+            headerTitle: () => <HeaderTitle title="Gestion" subtitle="Espace gérant" />,
+            tabBarIcon: tabIcon('settings'),
+          }}
+        />
+      </Tabs>
+    </View>
   );
 }

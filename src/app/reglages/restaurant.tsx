@@ -2,12 +2,13 @@ import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { Button, Card, Field, notify, SectionTitle } from '../../components/ui';
+import { ManagerGate } from '../../components/ManagerGate';
+import { Button, Card, Field, notify, SectionTitle, SwitchRow } from '../../components/ui';
 import { updateSettings } from '../../store/actions';
 import { useStore } from '../../store/StoreProvider';
 import { colors } from '../../theme';
 
-export default function RestaurantScreen() {
+function RestaurantScreen() {
   const { state, dispatch } = useStore();
   const router = useRouter();
   const s = state.settings;
@@ -15,6 +16,7 @@ export default function RestaurantScreen() {
   const [currency, setCurrency] = useState(s.currency);
   const [taxRate, setTaxRate] = useState(String(s.taxRate).replace('.', ','));
   const [alertMinutes, setAlertMinutes] = useState(String(s.alertMinutes));
+  const [returnAfterSend, setReturnAfterSend] = useState(s.returnAfterSend);
 
   const save = () => {
     const tax = parseFloat(taxRate.replace(',', '.'));
@@ -28,6 +30,7 @@ export default function RestaurantScreen() {
         currency: currency.trim() || '€',
         taxRate: tax,
         alertMinutes: alert,
+        returnAfterSend,
       }),
     );
     router.back();
@@ -62,6 +65,15 @@ export default function RestaurantScreen() {
             hint="Un ticket passe en rouge au-delà de ce délai."
           />
         </Card>
+        <SectionTitle>Prise de commande</SectionTitle>
+        <Card style={styles.card}>
+          <SwitchRow
+            label="Revenir au plan de salle après « Envoyer »"
+            hint="Le serveur enchaîne table suivante sans retour manuel."
+            value={returnAfterSend}
+            onChange={setReturnAfterSend}
+          />
+        </Card>
         <Button title="Enregistrer" icon="checkmark" onPress={save} style={styles.save} />
       </ScrollView>
     </View>
@@ -74,3 +86,11 @@ const styles = StyleSheet.create({
   card: { gap: 14 },
   save: { marginTop: 24 },
 });
+
+export default function RestaurantScreenRoute() {
+  return (
+    <ManagerGate>
+      <RestaurantScreen />
+    </ManagerGate>
+  );
+}

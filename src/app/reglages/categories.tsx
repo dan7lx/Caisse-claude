@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ManagerGate } from '../../components/ManagerGate';
 import {
   Button,
   confirm,
@@ -19,7 +20,7 @@ import { useStore } from '../../store/StoreProvider';
 import type { Category, Station } from '../../store/types';
 import { categoryPalette, colors, stationLabel } from '../../theme';
 
-export default function CategoriesScreen() {
+function CategoriesScreen() {
   const { state, dispatch } = useStore();
   const [draft, setDraft] = useState<Category | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -152,3 +153,11 @@ const styles = StyleSheet.create({
   swatch: { width: 40, height: 40, borderRadius: 20 },
   swatchActive: { borderWidth: 4, borderColor: colors.text },
 });
+
+export default function CategoriesScreenRoute() {
+  return (
+    <ManagerGate>
+      <CategoriesScreen />
+    </ManagerGate>
+  );
+}

@@ -7,7 +7,7 @@ import { setLinesStatus } from '../../store/actions';
 import { kitchenTickets, type Ticket } from '../../store/selectors';
 import { useNow, useStore } from '../../store/StoreProvider';
 import type { LineStatus, OrderLine, Station } from '../../store/types';
-import { colors, lineStatusStyle } from '../../theme';
+import { colors, fonts, lineStatusStyle } from '../../theme';
 import { formatElapsed, formatTime } from '../../utils/format';
 
 /** Statut suivant quand on touche une ligne en cuisine / au bar. */
@@ -160,16 +160,16 @@ const styles = StyleSheet.create({
   cell: { padding: 5 },
   ticket: {
     backgroundColor: colors.card,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 2,
-    borderColor: colors.dark,
+    borderColor: colors.ink,
     overflow: 'hidden',
   },
   ticketLate: { borderColor: colors.danger },
   ticketHead: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.dark, padding: 12 },
   ticketHeadLate: { backgroundColor: colors.danger },
-  ticketTitle: { color: '#FFFFFF', fontSize: 20, fontWeight: '800' },
-  ticketMeta: { color: '#E5E7EB', fontSize: 12, marginTop: 2 },
+  ticketTitle: { color: colors.onDark, fontSize: 22, fontFamily: fonts.display, fontVariant: ['lining-nums'] },
+  ticketMeta: { color: colors.goldLight, fontSize: 12, marginTop: 2 },
   ticketMetaDark: { color: colors.muted, fontSize: 12 },
   timer: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   timerText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16 },
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  pressed: { backgroundColor: '#F9FAFB' },
+  pressed: { backgroundColor: colors.goldSoft },
   lineText: { fontSize: 17, fontWeight: '600', color: colors.text },
   lineDone: { textDecorationLine: 'line-through', color: colors.muted },
   lineQty: { fontWeight: '800' },

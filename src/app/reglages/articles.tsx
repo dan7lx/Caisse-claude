@@ -2,6 +2,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { SectionList, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
+import { ManagerGate } from '../../components/ManagerGate';
 import {
   Button,
   Chip,
@@ -30,7 +31,7 @@ interface Draft {
   available: boolean;
 }
 
-export default function ArticlesScreen() {
+function ArticlesScreen() {
   const { state, dispatch } = useStore();
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -226,3 +227,11 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: '600', color: colors.text },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });
+
+export default function ArticlesScreenRoute() {
+  return (
+    <ManagerGate>
+      <ArticlesScreen />
+    </ManagerGate>
+  );
+}

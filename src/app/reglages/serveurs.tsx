@@ -3,13 +3,14 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ManagerGate } from '../../components/ManagerGate';
 import { Button, confirm, Field, FormModal, IconButton, ListRow, notify } from '../../components/ui';
-import { addServer, removeServer, renameServer, updateSettings } from '../../store/actions';
+import { addServer, removeServer, renameServer } from '../../store/actions';
 import { useStore } from '../../store/StoreProvider';
 import { colors } from '../../theme';
 
-export default function ServersScreen() {
-  const { state, dispatch } = useStore();
+function ServersScreen() {
+  const { state, device, updateDevice, dispatch } = useStore();
   const [newName, setNewName] = useState('');
   const [editing, setEditing] = useState<{ old: string; name: string } | null>(null);
 
@@ -27,6 +28,7 @@ export default function ServersScreen() {
     if (!name) return notify('Nom manquant', 'Indiquez un nom.');
     if (name !== editing.old && state.servers.includes(name)) return notify('Déjà existant', `« ${name} » existe déjà.`);
     dispatch(renameServer(editing.old, name));
+    if (device.currentServer === editing.old) updateDevice({ currentServer: name });
     setEditing(null);
   };
 
@@ -39,7 +41,7 @@ export default function ServersScreen() {
         </Text>
         <View style={styles.group}>
           {state.servers.map((s) => {
-            const active = s === state.settings.currentServer;
+            const active = s === device.currentServer;
             return (
               <ListRow
                 key={s}
@@ -47,7 +49,7 @@ export default function ServersScreen() {
                 iconColor={active ? colors.primary : colors.muted}
                 title={s}
                 subtitle={active ? 'Sur cet appareil' : undefined}
-                onPress={() => dispatch(updateSettings({ currentServer: s }))}
+                onPress={() => updateDevice({ currentServer: s })}
                 right={
                   <View style={styles.rowActions}>
                     {active ? <Ionicons name="checkmark-circle" size={22} color={colors.primary} /> : null}
@@ -57,7 +59,12 @@ export default function ServersScreen() {
                       label={`Supprimer ${s}`}
                       color={colors.danger}
                       disabled={state.servers.length <= 1}
-                      onPress={() => confirm('Supprimer ce serveur ?', `« ${s} » sera retiré de la liste.`, () => dispatch(removeServer(s)), 'Supprimer')}
+                      onPress={() =>
+                        confirm('Supprimer ce serveur ?', `« ${s} » sera retiré de la liste.`, () => {
+                          dispatch(removeServer(s));
+                          if (device.currentServer === s) updateDevice({ currentServer: state.servers.find((n) => n !== s) ?? s });
+                        }, 'Supprimer')
+                      }
                     />
                   </View>
                 }
@@ -86,3 +93,11 @@ const styles = StyleSheet.create({
   rowActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   addBox: { gap: 10, marginTop: 20 },
 });
+
+export default function ServersScreenRoute() {
+  return (
+    <ManagerGate>
+      <ServersScreen />
+    </ManagerGate>
+  );
+}

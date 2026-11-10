@@ -1,32 +1,32 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Button, Chip, Empty, SectionTitle } from '../../components/ui';
 import { createOrder } from '../../store/actions';
 import { uid } from '../../store/defaults';
-import { openOrderForTable, orderTotal, tableState } from '../../store/selectors';
+import { openOrderForTable, orderTotal, tableLabel, tableState } from '../../store/selectors';
 import { useNow, useStore } from '../../store/StoreProvider';
 import type { Table } from '../../store/types';
-import { colors, tableStateStyle } from '../../theme';
+import { colors, fonts, shadow, tableStateStyle } from '../../theme';
 import { formatElapsed, formatPrice } from '../../utils/format';
 
 const ALL = 'Toutes';
 
 export default function TablesScreen() {
-  const { state, dispatch } = useStore();
+  const { state, device, dispatch } = useStore();
   const router = useRouter();
   const now = useNow();
   const { width } = useWindowDimensions();
   const [zone, setZone] = useState(ALL);
 
-  const zones = useMemo(
-    () => Array.from(new Set(state.tables.map((t) => t.zone || 'Salle'))),
-    [state.tables],
-  );
+  const zones = useMemo(() => Array.from(new Set(state.tables.map((t) => t.zone || 'Salle'))), [state.tables]);
+
+  if (device.role === 'cuisine') return <Redirect href="/cuisine" />;
+
   const columns = width >= 1000 ? 6 : width >= 700 ? 4 : 3;
-  const gap = 10;
+  const gap = 12;
   const contentWidth = Math.min(width, 1200) - 32;
   const cardWidth = (contentWidth - gap * (columns - 1)) / columns;
 
@@ -45,14 +45,14 @@ export default function TablesScreen() {
       return;
     }
     const id = uid();
-    dispatch(createOrder(id, table.id, table.name));
+    dispatch(createOrder(id, table.id, tableLabel(table), device.currentServer));
     router.push(`/commande/${id}`);
   };
 
   if (state.tables.length === 0) {
     return (
       <View style={styles.screen}>
-        <Empty icon="grid-outline" title="Aucune table" subtitle="Ajoutez vos tables dans l’onglet Gestion.">
+        <Empty icon="grid-outline" title="Aucune table" subtitle="Le gérant ajoute les tables dans Gestion › Tables & zones.">
           <Button title="Ajouter des tables" icon="add" onPress={() => router.push('/reglages/tables')} />
         </Empty>
       </View>
@@ -64,13 +64,15 @@ export default function TablesScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.summary}>
-        <Summary color={colors.free} label="libres" value={counts.libre} />
-        <Summary color={colors.busy} label="occupées" value={counts.occupee} />
-        <Summary color={colors.ready} label="prêtes à servir" value={counts.pret} />
-        <View style={styles.server}>
-          <Ionicons name="person-circle-outline" size={18} color={colors.muted} />
-          <Text style={styles.serverText}>{state.settings.currentServer}</Text>
-        </View>
+        <Stat color={colors.free} value={counts.libre} label="libres" />
+        <Stat color={colors.busy} value={counts.occupee} label="occupées" />
+        <Stat color={colors.ready} value={counts.pret} label="à servir" />
+      </View>
+      <View style={styles.me}>
+        <Ionicons name="person-circle" size={18} color={colors.goldDeep} />
+        <Text style={styles.meText}>
+          Service de <Text style={styles.meName}>{device.currentServer}</Text> · touchez une table pour commander
+        </Text>
       </View>
 
       {zones.length > 1 ? (
@@ -94,34 +96,39 @@ export default function TablesScreen() {
                   <Pressable
                     key={t.id}
                     accessibilityRole="button"
-                    accessibilityLabel={`Table ${t.name}, ${st.label}`}
+                    accessibilityLabel={`${tableLabel(t)}, ${st.label}`}
                     onPress={() => openTable(t)}
-                    style={({ pressed }) => [
-                      styles.table,
-                      { width: cardWidth, backgroundColor: st.soft, borderColor: st.color },
-                      pressed && styles.pressed,
-                    ]}
+                    style={({ pressed }) => [styles.table, { width: cardWidth }, pressed && styles.pressed]}
                   >
-                    <View style={styles.tableHeader}>
-                      <Text style={styles.tableName} numberOfLines={1}>
-                        {t.name}
-                      </Text>
-                      <View style={styles.seats}>
-                        <Ionicons name="people" size={13} color={colors.muted} />
-                        <Text style={styles.seatsText}>{order ? order.guests : t.seats}</Text>
+                    <View style={[styles.band, { backgroundColor: st.color }]} />
+                    <View style={styles.tableBody}>
+                      <View style={styles.tableHeader}>
+                        <Text style={styles.tableName} numberOfLines={1} adjustsFontSizeToFit>
+                          {t.name}
+                        </Text>
+                        <View style={styles.seats}>
+                          <Ionicons name="people" size={12} color={colors.muted} />
+                          <Text style={styles.seatsText}>{order ? order.guests : t.seats}</Text>
+                        </View>
                       </View>
+                      <View style={[styles.pill, { backgroundColor: st.soft }]}>
+                        <Text style={[styles.pillText, { color: st.color }]} numberOfLines={1}>
+                          {st.label}
+                        </Text>
+                      </View>
+                      {order ? (
+                        <View>
+                          <Text style={styles.amount} numberOfLines={1}>
+                            {formatPrice(orderTotal(order), state.settings.currency)}
+                          </Text>
+                          <Text style={styles.meta} numberOfLines={1}>
+                            {formatElapsed(now - order.createdAt)} · {order.server}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.metaFree}>Ouvrir</Text>
+                      )}
                     </View>
-                    <Text style={[styles.tableState, { color: st.color }]} numberOfLines={1}>
-                      {st.label}
-                    </Text>
-                    {order ? (
-                      <Text style={styles.tableInfo} numberOfLines={1}>
-                        {formatPrice(orderTotal(order), state.settings.currency)} ·{' '}
-                        {formatElapsed(now - order.createdAt)}
-                      </Text>
-                    ) : (
-                      <Text style={styles.tableInfo}> </Text>
-                    )}
                   </Pressable>
                 );
               })}
@@ -132,41 +139,54 @@ export default function TablesScreen() {
   );
 }
 
-function Summary({ color, label, value }: { color: string; label: string; value: number }) {
+function Stat({ color, value, label }: { color: string; value: number; label: string }) {
   return (
-    <View style={styles.summaryItem}>
-      <View style={[styles.dot, { backgroundColor: color }]} />
-      <Text style={styles.summaryText}>
-        <Text style={styles.summaryValue}>{value}</Text> {label}
-      </Text>
+    <View style={styles.stat}>
+      <Text style={[styles.statValue, { color }]}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: 16, paddingBottom: 32, width: '100%', maxWidth: 1200, alignSelf: 'center' },
-  summary: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 14, marginBottom: 8 },
-  summaryItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  summaryText: { color: colors.muted, fontSize: 14 },
-  summaryValue: { color: colors.text, fontWeight: '800' },
-  dot: { width: 10, height: 10, borderRadius: 5 },
-  server: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' },
-  serverText: { color: colors.muted, fontWeight: '600' },
-  chips: { gap: 8, paddingVertical: 6 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 6 },
-  table: {
-    borderWidth: 2,
-    borderRadius: 14,
-    padding: 10,
-    minHeight: 92,
-    justifyContent: 'space-between',
+  content: { padding: 16, paddingBottom: 40, width: '100%', maxWidth: 1200, alignSelf: 'center' },
+  summary: { flexDirection: 'row', gap: 10 },
+  stat: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  pressed: { opacity: 0.75, transform: [{ scale: 0.98 }] },
-  tableHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  tableName: { fontSize: 20, fontWeight: '800', color: colors.text, flexShrink: 1 },
-  seats: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  seatsText: { fontSize: 13, color: colors.muted, fontWeight: '600' },
-  tableState: { fontSize: 13, fontWeight: '700' },
-  tableInfo: { fontSize: 12, color: colors.text },
+  statValue: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 26 },
+  statLabel: { fontSize: 12, color: colors.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
+  me: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 },
+  meText: { color: colors.muted, fontSize: 13, flexShrink: 1 },
+  meName: { color: colors.text, fontWeight: '800' },
+  chips: { gap: 8, paddingVertical: 10 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  table: {
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    minHeight: 132,
+    ...shadow,
+  },
+  band: { height: 6 },
+  tableBody: { flex: 1, padding: 10, gap: 6, justifyContent: 'space-between' },
+  pressed: { opacity: 0.8, transform: [{ scale: 0.97 }] },
+  tableHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  tableName: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 30, color: colors.text, flexShrink: 1, lineHeight: 34 },
+  seats: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4 },
+  seatsText: { fontSize: 12, color: colors.muted, fontWeight: '700' },
+  pill: { alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, maxWidth: '100%' },
+  pillText: { fontSize: 11, fontWeight: '800' },
+  amount: { fontSize: 15, fontWeight: '800', color: colors.text },
+  meta: { fontSize: 11, color: colors.muted },
+  metaFree: { fontSize: 12, color: colors.goldDeep, fontWeight: '700' },
 });

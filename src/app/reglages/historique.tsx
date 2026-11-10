@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ManagerGate } from '../../components/ManagerGate';
 import { Badge, Button, Card, confirm, Empty, SectionTitle, Segmented } from '../../components/ui';
 import { clearHistory } from '../../store/actions';
 import { orderTotal, salesStats, startOfDay } from '../../store/selectors';
@@ -12,7 +13,7 @@ import { formatDate, formatPrice, formatTime } from '../../utils/format';
 
 type Period = 'jour' | 'tout';
 
-export default function HistoryScreen() {
+function HistoryScreen() {
   const { state, dispatch } = useStore();
   const [period, setPeriod] = useState<Period>('jour');
   const currency = state.settings.currency;
@@ -160,3 +161,11 @@ const styles = StyleSheet.create({
   right: { alignItems: 'flex-end' },
   clear: { marginTop: 20 },
 });
+
+export default function HistoryScreenRoute() {
+  return (
+    <ManagerGate>
+      <HistoryScreen />
+    </ManagerGate>
+  );
+}

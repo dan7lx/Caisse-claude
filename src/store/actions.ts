@@ -1,270 +1,108 @@
-import { createDemoState, createEmptyState, uid } from './defaults';
+import { createDemoData, createEmptyData, uid } from './defaults';
+import type { Op } from './ops';
 import type {
-  AppState,
   Category,
+  License,
   LineStatus,
   MenuItem,
-  Order,
+  PaymentLinks,
   PaymentMethod,
+  Security,
   Settings,
   Station,
   Table,
-  Updater,
 } from './types';
 
-// Toutes les actions sont des fonctions pures (état -> nouvel état),
-// ce qui les rend faciles à tester et à combiner.
+// Créateurs d'opérations : c'est ici (et seulement ici) que sont générés
+// les identifiants et les horodatages, pour que les opérations soient rejouables.
 
-function mapOrder(state: AppState, orderId: string, fn: (order: Order) => Order): AppState {
-  return { ...state, orders: state.orders.map((o) => (o.id === orderId ? fn(o) : o)) };
-}
-
-function upsert<T extends { id: string }>(list: T[], entry: T): T[] {
-  return list.some((x) => x.id === entry.id)
-    ? list.map((x) => (x.id === entry.id ? entry : x))
-    : [...list, entry];
-}
-
-export function compose(...updaters: Updater[]): Updater {
-  return (state) => updaters.reduce((s, u) => u(s), state);
-}
-
-/* ---------------------------- Commandes ---------------------------- */
-
-export const createOrder =
-  (id: string, tableId: string | null, label: string): Updater =>
-  (s) => {
-    if (tableId && s.orders.some((o) => o.status === 'ouverte' && o.tableId === tableId)) return s;
-    const number = s.orderCounter + 1;
-    const order: Order = {
-      id,
-      number,
-      tableId,
-      label,
-      server: s.settings.currentServer,
-      guests: tableId ? (s.tables.find((t) => t.id === tableId)?.seats ?? 1) : 1,
-      lines: [],
-      status: 'ouverte',
-      createdAt: Date.now(),
-      paidAt: null,
-      payment: null,
-      batchCount: 0,
-    };
-    return { ...s, orderCounter: number, orders: [...s.orders, order] };
-  };
-
-export const addItem =
-  (orderId: string, item: MenuItem, station: Station): Updater =>
-  (s) =>
-    mapOrder(s, orderId, (o) => {
-      const existing = o.lines.find((l) => l.status === 'brouillon' && l.itemId === item.id && !l.note);
-      if (existing) {
-        return { ...o, lines: o.lines.map((l) => (l === existing ? { ...l, qty: l.qty + 1 } : l)) };
-      }
-      return {
-        ...o,
-        lines: [
-          ...o.lines,
-          {
-            id: uid(),
-            itemId: item.id,
-            name: item.name,
-            unitPrice: item.price,
-            qty: 1,
-            note: '',
-            station,
-            status: 'brouillon',
-            batch: null,
-            sentAt: null,
-            readyAt: null,
-          },
-        ],
-      };
-    });
-
-/** Modifie la quantité d'une ligne non envoyée ; la supprime si elle tombe à 0. */
-export const changeQty =
-  (orderId: string, lineId: string, delta: number): Updater =>
-  (s) =>
-    mapOrder(s, orderId, (o) => ({
-      ...o,
-      lines: o.lines
-        .map((l) => (l.id === lineId && l.status === 'brouillon' ? { ...l, qty: l.qty + delta } : l))
-        .filter((l) => l.qty > 0),
-    }));
-
-export const setLineNote =
-  (orderId: string, lineId: string, note: string): Updater =>
-  (s) =>
-    mapOrder(s, orderId, (o) => ({
-      ...o,
-      lines: o.lines.map((l) => (l.id === lineId ? { ...l, note: note.trim() } : l)),
-    }));
-
-export const removeLine =
-  (orderId: string, lineId: string): Updater =>
-  (s) =>
-    mapOrder(s, orderId, (o) => ({ ...o, lines: o.lines.filter((l) => l.id !== lineId) }));
-
-export const setGuests =
-  (orderId: string, guests: number): Updater =>
-  (s) =>
-    mapOrder(s, orderId, (o) => ({ ...o, guests: Math.max(0, guests) }));
-
-/** Envoie toutes les lignes en brouillon vers la cuisine / le bar (un nouvel « envoi »). */
-export const sendOrder =
-  (orderId: string): Updater =>
-  (s) =>
-    mapOrder(s, orderId, (o) => {
-      if (!o.lines.some((l) => l.status === 'brouillon')) return o;
-      const batch = o.batchCount + 1;
-      const now = Date.now();
-      return {
-        ...o,
-        batchCount: batch,
-        lines: o.lines.map((l) =>
-          l.status === 'brouillon' ? { ...l, status: 'envoye', batch, sentAt: now } : l,
-        ),
-      };
-    });
-
-export const setLinesStatus =
-  (orderId: string, lineIds: string[], status: LineStatus): Updater =>
-  (s) =>
-    mapOrder(s, orderId, (o) => ({
-      ...o,
-      lines: o.lines.map((l) => {
-        if (!lineIds.includes(l.id) || l.status === 'brouillon') return l;
-        const readyAt =
-          status === 'pret' ? Date.now() : status === 'servi' ? (l.readyAt ?? Date.now()) : null;
-        return { ...l, status, readyAt };
-      }),
-    }));
-
-export const payOrder =
-  (orderId: string, payment: PaymentMethod): Updater =>
-  (s) =>
-    mapOrder(compose(sendOrder(orderId))(s), orderId, (o) => ({
-      ...o,
-      status: 'payee',
-      paidAt: Date.now(),
-      payment,
-    }));
-
-export const cancelOrder =
-  (orderId: string): Updater =>
-  (s) => {
-    const order = s.orders.find((o) => o.id === orderId);
-    if (!order) return s;
-    // Une commande dont rien n'a été envoyé est simplement supprimée.
-    if (order.lines.every((l) => l.status === 'brouillon')) {
-      return { ...s, orders: s.orders.filter((o) => o.id !== orderId) };
-    }
-    return mapOrder(s, orderId, (o) => ({ ...o, status: 'annulee', paidAt: Date.now() }));
-  };
-
-/** Supprime une commande ouverte restée vide (table ouverte puis quittée sans rien commander). */
-export const removeIfEmpty =
-  (orderId: string): Updater =>
-  (s) => {
-    const order = s.orders.find((o) => o.id === orderId);
-    if (!order || order.status !== 'ouverte' || order.lines.length > 0) return s;
-    return { ...s, orders: s.orders.filter((o) => o.id !== orderId) };
-  };
-
-export const clearHistory: Updater = (s) => ({
-  ...s,
-  orders: s.orders.filter((o) => o.status === 'ouverte'),
+export const createOrder = (id: string, tableId: string | null, label: string, server: string): Op => ({
+  t: 'createOrder',
+  id,
+  tableId,
+  label,
+  server,
+  at: Date.now(),
 });
 
-/* ----------------------------- Gestion ----------------------------- */
+export const addItem = (orderId: string, item: MenuItem, station: Station): Op => ({
+  t: 'addItem',
+  orderId,
+  lineId: uid(),
+  item,
+  station,
+});
 
-export const updateSettings =
-  (patch: Partial<Settings>): Updater =>
-  (s) => ({ ...s, settings: { ...s.settings, ...patch } });
+export const changeQty = (orderId: string, lineId: string, delta: number): Op => ({
+  t: 'changeQty',
+  orderId,
+  lineId,
+  delta,
+});
 
-export const upsertTable =
-  (table: Table): Updater =>
-  (s) => ({ ...s, tables: upsert(s.tables, table) });
+export const setLineNote = (orderId: string, lineId: string, note: string): Op => ({
+  t: 'setLineNote',
+  orderId,
+  lineId,
+  note,
+});
 
-export const addTables =
-  (tables: Table[]): Updater =>
-  (s) => ({ ...s, tables: [...s.tables, ...tables] });
+export const removeLine = (orderId: string, lineId: string): Op => ({ t: 'removeLine', orderId, lineId });
 
-export const deleteTable =
-  (id: string): Updater =>
-  (s) => ({ ...s, tables: s.tables.filter((t) => t.id !== id) });
+export const setGuests = (orderId: string, guests: number): Op => ({ t: 'setGuests', orderId, guests });
 
-export const upsertCategory =
-  (category: Category): Updater =>
-  (s) => ({ ...s, categories: upsert(s.categories, category) });
+export const sendOrder = (orderId: string): Op => ({ t: 'sendOrder', orderId, at: Date.now() });
 
-/** Supprime une catégorie et tous ses articles. */
-export const deleteCategory =
-  (id: string): Updater =>
-  (s) => ({
-    ...s,
-    categories: s.categories.filter((c) => c.id !== id),
-    items: s.items.filter((i) => i.categoryId !== id),
-  });
+export const setLinesStatus = (orderId: string, lineIds: string[], status: LineStatus): Op => ({
+  t: 'setLinesStatus',
+  orderId,
+  lineIds,
+  status,
+  at: Date.now(),
+});
 
-export const moveCategory =
-  (id: string, direction: -1 | 1): Updater =>
-  (s) => {
-    const index = s.categories.findIndex((c) => c.id === id);
-    const target = index + direction;
-    if (index < 0 || target < 0 || target >= s.categories.length) return s;
-    const categories = [...s.categories];
-    [categories[index], categories[target]] = [categories[target], categories[index]];
-    return { ...s, categories };
-  };
+export const payOrder = (orderId: string, payment: PaymentMethod): Op => ({
+  t: 'payOrder',
+  orderId,
+  payment,
+  at: Date.now(),
+});
 
-export const upsertItem =
-  (item: MenuItem): Updater =>
-  (s) => ({ ...s, items: upsert(s.items, item) });
+export const cancelOrder = (orderId: string): Op => ({ t: 'cancelOrder', orderId, at: Date.now() });
 
-export const deleteItem =
-  (id: string): Updater =>
-  (s) => ({ ...s, items: s.items.filter((i) => i.id !== id) });
+export const removeIfEmpty = (orderId: string): Op => ({ t: 'removeIfEmpty', orderId });
 
-export const setItemAvailable =
-  (id: string, available: boolean): Updater =>
-  (s) => ({ ...s, items: s.items.map((i) => (i.id === id ? { ...i, available } : i)) });
+export const clearHistory: Op = { t: 'clearHistory' };
 
-export const addServer =
-  (name: string): Updater =>
-  (s) => {
-    const clean = name.trim();
-    if (!clean || s.servers.includes(clean)) return s;
-    return { ...s, servers: [...s.servers, clean] };
-  };
+export const updateSettings = (patch: Partial<Settings>): Op => ({ t: 'updateSettings', patch });
 
-export const renameServer =
-  (oldName: string, newName: string): Updater =>
-  (s) => {
-    const clean = newName.trim();
-    if (!clean || (clean !== oldName && s.servers.includes(clean))) return s;
-    return {
-      ...s,
-      servers: s.servers.map((n) => (n === oldName ? clean : n)),
-      settings:
-        s.settings.currentServer === oldName ? { ...s.settings, currentServer: clean } : s.settings,
-    };
-  };
+export const upsertTable = (table: Table): Op => ({ t: 'upsertTable', table });
+export const addTables = (tables: Table[]): Op => ({ t: 'addTables', tables });
+export const deleteTable = (id: string): Op => ({ t: 'deleteTable', id });
 
-export const removeServer =
-  (name: string): Updater =>
-  (s) => {
-    if (s.servers.length <= 1) return s;
-    const servers = s.servers.filter((n) => n !== name);
-    return {
-      ...s,
-      servers,
-      settings:
-        s.settings.currentServer === name ? { ...s.settings, currentServer: servers[0] } : s.settings,
-    };
-  };
+export const upsertCategory = (category: Category): Op => ({ t: 'upsertCategory', category });
+export const deleteCategory = (id: string): Op => ({ t: 'deleteCategory', id });
+export const moveCategory = (id: string, direction: -1 | 1): Op => ({ t: 'moveCategory', id, direction });
 
-export const resetDemo: Updater = () => createDemoState();
+export const upsertItem = (item: MenuItem): Op => ({ t: 'upsertItem', item });
+export const deleteItem = (id: string): Op => ({ t: 'deleteItem', id });
+export const setItemAvailable = (id: string, available: boolean): Op => ({
+  t: 'setItemAvailable',
+  id,
+  available,
+});
 
-export const wipeAll: Updater = (s) => createEmptyState({ settings: s.settings, servers: s.servers });
+export const addServer = (name: string): Op => ({ t: 'addServer', name });
+export const renameServer = (oldName: string, newName: string): Op => ({ t: 'renameServer', oldName, newName });
+export const removeServer = (name: string): Op => ({ t: 'removeServer', name });
+
+export const resetDemo = (): Op => ({ t: 'replaceData', data: createDemoData() });
+export const wipeAll = (settings: Settings, servers: string[]): Op => ({
+  t: 'replaceData',
+  data: createEmptyData(settings, servers),
+});
+
+export const setManagerPin = (hash: string | null): Op => ({ t: 'setManagerPin', hash });
+export const setSecurity = (patch: Partial<Security>): Op => ({ t: 'setSecurity', patch });
+export const setLicense = (license: License): Op => ({ t: 'setLicense', license });
+export const setPaymentLinks = (links: PaymentLinks): Op => ({ t: 'setPaymentLinks', links });

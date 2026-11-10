@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { ManagerGate } from '../../components/ManagerGate';
 import {
   Button,
   Chip,
@@ -35,7 +36,7 @@ interface BulkDraft {
   seats: string;
 }
 
-export default function TablesSettingsScreen() {
+function TablesSettingsScreen() {
   const { state, dispatch } = useStore();
   const [draft, setDraft] = useState<TableDraft | null>(null);
   const [bulk, setBulk] = useState<BulkDraft | null>(null);
@@ -197,3 +198,11 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   hint: { fontSize: 12, color: colors.muted },
 });
+
+export default function TablesSettingsScreenRoute() {
+  return (
+    <ManagerGate>
+      <TablesSettingsScreen />
+    </ManagerGate>
+  );
+}
