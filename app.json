@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Caisse Resto",
+    "slug": "caisse-resto",
+    "scheme": "caisseresto",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.caisseresto.app"
+    },
+    "android": {
+      "package": "com.caisseresto.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFEDD5",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "name": "Caisse Resto",
+      "shortName": "Caisse",
+      "themeColor": "#EA580C",
+      "backgroundColor": "#F3F4F6"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
