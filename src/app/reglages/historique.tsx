@@ -2,11 +2,12 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useCreatorCode } from '../../components/CreatorGate';
 import { Emoji3D } from '../../components/Emoji3D';
 import { ManagerGate } from '../../components/ManagerGate';
-import { PrintPreview } from '../../components/PrintPreview';
+import { TicketPreview } from '../../components/TicketPreview';
 import { Badge, Button, Card, confirm, Empty, Notice, SectionTitle, Segmented } from '../../components/ui';
-import { closureDoc, type PrintDoc, receiptDoc, statsDoc } from '../../print/doc';
+import { closureDoc, receiptDoc, type TicketDoc } from '../../ticket/doc';
 import { clearHistory } from '../../store/actions';
 import { orderTotal, salesStats, startOfDay } from '../../store/selectors';
 import { useStore } from '../../store/StoreProvider';
@@ -19,7 +20,8 @@ type Period = 'jour' | 'clotures' | 'tout';
 function HistoryScreen() {
   const { state, dispatch } = useStore();
   const [period, setPeriod] = useState<Period>('jour');
-  const [preview, setPreview] = useState<PrintDoc | null>(null);
+  const [preview, setPreview] = useState<TicketDoc | null>(null);
+  const creator = useCreatorCode();
   const currency = state.settings.currency;
   const p = (n: number) => formatPrice(n, currency);
 
@@ -29,8 +31,6 @@ function HistoryScreen() {
     .sort((a, b) => (b.paidAt ?? 0) - (a.paidAt ?? 0));
   const stats = salesStats(closed);
   const closures = [...state.closures].reverse();
-  const today = new Date();
-  const periodLabel = period === 'jour' ? `du ${formatDate(today.getTime())}/${today.getFullYear()}` : 'complet';
 
   return (
     <View style={styles.screen}>
@@ -50,7 +50,7 @@ function HistoryScreen() {
           <>
             <Notice title="Clôture automatique à minuit">
               Chaque nuit à minuit, la journée est clôturée (Z de caisse) et le chiffre du jour repart à 0 €. Touchez une
-              clôture pour la voir et l’imprimer.
+              clôture pour la voir.
             </Notice>
             {closures.length === 0 ? <Empty icon="time-outline" emoji="🗓️" title="Aucune clôture pour l’instant" subtitle="La première aura lieu ce soir à minuit." /> : null}
             {closures.map((z) => (
@@ -86,13 +86,27 @@ function HistoryScreen() {
               <Stat emoji="👥" label="Couverts" value={String(stats.guests)} />
               <Stat emoji="🏷️" label="Remises" value={p(stats.discounts)} />
             </View>
-
-            <Button
-              title="Imprimer le rapport"
-              icon="print"
-              onPress={() => setPreview(statsDoc(state, closed, periodLabel))}
-              style={styles.printBtn}
-            />
+            {stats.vat ? (
+              <View style={styles.stats}>
+                <Stat emoji="🏛️" label="TVA collectée" value={p(stats.vat)} />
+                <Stat emoji="📒" label="Chiffre d’affaires HT" value={p(stats.revenue - stats.vat)} />
+              </View>
+            ) : null}
+            {Object.keys(stats.vatByRate).length ? (
+              <>
+                <SectionTitle>TVA par taux</SectionTitle>
+                <Card style={styles.card}>
+                  {Object.keys(stats.vatByRate)
+                    .sort((a, b) => Number(a) - Number(b))
+                    .map((r) => (
+                      <View key={r} style={styles.kv}>
+                        <Text style={styles.k}>TVA {r} %</Text>
+                        <Text style={styles.v}>{p(stats.vatByRate[r])}</Text>
+                      </View>
+                    ))}
+                </Card>
+              </>
+            ) : null}
 
             <SectionTitle>Encaissé par moyen de paiement</SectionTitle>
             <Card style={styles.card}>
@@ -121,7 +135,7 @@ function HistoryScreen() {
               ))}
             </Card>
 
-            <SectionTitle>Tickets (touchez pour réimprimer)</SectionTitle>
+            <SectionTitle>Tickets (touchez pour les voir)</SectionTitle>
             {closed.length === 0 ? <Empty icon="time-outline" emoji="🧾" title="Aucune commande clôturée" /> : null}
             {closed.map((o) => (
               <Pressable
@@ -161,17 +175,20 @@ function HistoryScreen() {
             variant="ghost"
             style={styles.clear}
             onPress={() =>
-              confirm(
-                'Effacer l’historique ?',
-                'Les tickets encaissés ou annulés seront supprimés. Les clôtures journalières et les commandes en cours sont conservées.',
-                () => dispatch(clearHistory),
-                'Effacer',
+              creator.ask(() =>
+                confirm(
+                  'Effacer l’historique ?',
+                  'Les tickets encaissés ou annulés seront supprimés. Les clôtures journalières et les commandes en cours sont conservées.',
+                  () => dispatch(clearHistory),
+                  'Effacer',
+                ),
               )
             }
           />
         ) : null}
       </ScrollView>
-      <PrintPreview doc={preview} onClose={() => setPreview(null)} />
+      <TicketPreview doc={preview} onClose={() => setPreview(null)} />
+      {creator.modal}
     </View>
   );
 }
@@ -213,7 +230,6 @@ const styles = StyleSheet.create({
   },
   statValue: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 21, color: colors.text },
   statLabel: { fontSize: 12, color: colors.muted },
-  printBtn: { marginTop: 14 },
   card: { gap: 10 },
   kv: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
   kvTotal: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },

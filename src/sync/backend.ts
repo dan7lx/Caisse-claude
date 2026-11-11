@@ -30,7 +30,7 @@ export function normalizeServer(cfg: ServerConfig): ServerConfig {
   return { url: cfg.url.trim().replace(/\/+$/, ''), anonKey: cfg.anonKey.trim() };
 }
 
-async function rpc<T>(cfg: ServerConfig, fn: string, args: Record<string, unknown>): Promise<T> {
+export async function rpc<T>(cfg: ServerConfig, fn: string, args: Record<string, unknown>): Promise<T> {
   const { url, anonKey } = normalizeServer(cfg);
   const headers: Record<string, string> = { 'Content-Type': 'application/json', apikey: anonKey };
   // Les anciennes clés « anon » sont des JWT ; les nouvelles clés « publishable » non.

@@ -25,20 +25,16 @@ function PreferencesScreen() {
   const toast = useToast();
   const s = state.settings;
   const [currency, setCurrency] = useState(s.currency);
-  const [taxRate, setTaxRate] = useState(String(s.taxRate).replace('.', ','));
   const [alertMinutes, setAlertMinutes] = useState(String(s.alertMinutes));
   const [returnAfterSend, setReturnAfterSend] = useState(s.returnAfterSend);
   const [autoLock, setAutoLock] = useState(s.autoLockMinutes);
 
   const save = () => {
-    const tax = parseFloat(taxRate.replace(',', '.'));
     const alert = parseInt(alertMinutes, 10);
-    if (!Number.isFinite(tax) || tax < 0 || tax > 100) return notify('TVA invalide', 'Indiquez un taux entre 0 et 100.');
     if (!Number.isFinite(alert) || alert < 1) return notify('Délai invalide', 'Indiquez un nombre de minutes (1 ou plus).');
     dispatch(
       updateSettings({
         currency: currency.trim() || '€',
-        taxRate: tax,
         alertMinutes: alert,
         returnAfterSend,
         autoLockMinutes: autoLock,
@@ -55,13 +51,9 @@ function PreferencesScreen() {
       <SectionTitle>Caisse</SectionTitle>
       <Card style={styles.card}>
         <Field label="Devise" value={currency} onChangeText={setCurrency} hint="Symbole affiché après les prix (€, CHF, $…)." />
-        <Field
-          label="Taux de TVA (%)"
-          value={taxRate}
-          onChangeText={setTaxRate}
-          keyboardType="decimal-pad"
-          hint="Les prix sont saisis TTC ; ce taux sert à afficher la TVA incluse à l’encaissement."
-        />
+        <Text style={styles.vatInfo}>
+          TVA : choisie à chaque encaissement (0, 6, 12 ou 21 %) et ajoutée au montant. Les prix de la carte sont donc saisis hors TVA.
+        </Text>
       </Card>
 
       <SectionTitle>Service</SectionTitle>
@@ -116,6 +108,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 16, paddingBottom: 48, width: '100%', maxWidth: 720, alignSelf: 'center' },
   card: { gap: 14 },
+  vatInfo: { color: colors.muted, fontSize: 13, lineHeight: 19 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   label: { fontWeight: '700', fontSize: 15, color: colors.text },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

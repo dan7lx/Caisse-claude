@@ -35,11 +35,8 @@ async function pin(page, code, submit) {
   await d.getByText('Activez votre abonnement').waitFor();
   await shot(d, 'v3-01-accueil');
   await d.getByRole('button', { name: 'Payer l’abonnement Mensuel' }).click();
-  await d.getByText('BE71 6501 5624 2169').waitFor();
-  await d.getByText('R Pereira').waitFor();
-  await d.getByText('Le paiement doit être effectué par virement instantané', { exact: false }).waitFor();
-  console.log('Paiement : montant, IBAN BE71 6501 5624 2169, R Pereira et mention « virement instantané » affichés');
-  await shot(d, 'v3-02-paiement');
+  await d.getByLabel('Prénom et nom').waitFor();
+  console.log('Payer : formulaire client (le parcours complet est testé dans scenario-paiement.js)');
   await d.getByRole('button', { name: 'Fermer' }).click();
   await d.getByRole('button', { name: 'Activer le mode démo' }).click();
   await pin(d, CODES.demo);
@@ -62,17 +59,15 @@ async function pin(page, code, submit) {
   const a = await ctxA.newPage();
   attach(a, 'A', errors);
   await a.goto(APP);
-  await a.getByLabel('Code d’activation').fill(CODES.admin);
-  await a.getByRole('button', { name: 'Activer', exact: true }).click();
+  await CODES.activateWithKey(a, 'mensuel');
   await a.getByRole('button', { name: /^Table 1,/ }).waitFor();
+  console.log('Clé d’activation du serveur saisie : abonnement mensuel actif');
   await a.getByText('Gestion', { exact: true }).last().click();
-  await a.getByText('Identité & logo').waitFor();
-  await shot(a, 'v3-05-gestion');
-  await a.getByRole('button', { name: 'Verrouiller' }).click();
   await a.getByText('Créez le code gérant').waitFor();
   await pin(a, '2580', 'Continuer');
   await pin(a, '2580'); // confirmation : validation automatique au 4e chiffre
   await a.getByText('Identité & logo').waitFor();
+  await shot(a, 'v3-05-gestion');
   await a.getByRole('button', { name: 'Verrouiller' }).click();
   await pin(a, '2580'); // ouverture automatique au dernier chiffre
   await a.getByText('Identité & logo').waitFor();
@@ -119,9 +114,16 @@ async function pin(page, code, submit) {
   globalThis.pages = { m };
   attach(m, 'M', errors);
   await m.goto(APP);
-  await m.getByLabel('Code d’activation').fill(CODES.admin);
-  await m.getByRole('button', { name: 'Activer', exact: true }).click();
-  await m.getByRole('button', { name: 'Équipe' }).first().click();
+  await CODES.activateWithKey(m, 'vie');
+  await m.getByText('Gestion', { exact: true }).last().click();
+  await m.getByText('Créez le code gérant').waitFor();
+  await pin(m, '3691', 'Continuer');
+  await pin(m, '3691');
+  await m.getByText('Identité & logo').waitFor();
+  await m.getByText('Salle', { exact: true }).last().click();
+  await m.getByRole('button', { name: /^Table 1,/ }).waitFor();
+  await m.waitForTimeout(800); // fin de la transition d'onglet (l'en-tête de la Gestion disparaît)
+  await m.getByRole('button', { name: 'Équipe' }).filter({ visible: true }).first().click();
   await m.getByRole('button', { name: 'Créer un lobby' }).click();
   await m.getByLabel('Adresse du serveur Supabase').fill(SERVER);
   await m.getByLabel('Clé publique (anon / publishable)').fill(KEY);

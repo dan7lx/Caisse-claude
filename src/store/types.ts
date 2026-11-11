@@ -1,3 +1,5 @@
+import type { PendingPayment } from '../license/server';
+
 export type Station = 'cuisine' | 'bar';
 
 /** Cycle de vie d'une ligne de commande. */
@@ -73,12 +75,20 @@ export interface Order {
   tip?: number;
   /** Espèces reçues (pour calculer la monnaie rendue). */
   cashReceived?: number | null;
+  /**
+   * Taux de TVA choisi à l'encaissement (0, 6, 12 ou 21 %), ajouté au montant.
+   * Absent sur les commandes encaissées avant ce choix : leur TVA était incluse dans les prix.
+   */
+  vatRate?: number | null;
 }
 
 export interface Settings {
   restaurantName: string;
   currency: string;
-  /** Taux de TVA en pourcentage, utilisé pour l'affichage de la TVA incluse. */
+  /**
+   * Ancien taux de TVA « incluse » (plus modifiable) : sert seulement à afficher la TVA
+   * des commandes et clôtures antérieures au choix de TVA à l'encaissement.
+   */
   taxRate: number;
   /** Délai (minutes) après lequel un ticket cuisine/bar passe en alerte. */
   alertMinutes: number;
@@ -132,6 +142,8 @@ export interface DailyClosure {
   guests: number;
   /** Chiffre d'affaires TTC (remises déduites, hors pourboires). */
   revenue: number;
+  /** TVA ajoutée à l'encaissement, par taux (« 21 » → montant). Absent sur les anciennes clôtures. */
+  vatByRate?: Record<string, number>;
   tips: number;
   discounts: number;
   byPayment: Record<PaymentMethod, number>;
@@ -207,20 +219,10 @@ export interface DeviceState {
   server: ServerConfig | null;
   /** Date (AAAA-MM-JJ) du dernier rappel de paiement fermé. */
   reminderDismissedOn: string | null;
-  printer: PrinterSettings;
   /** Essais de code gérant ratés d'affilée, et blocage temporaire qui en découle. */
   pinFailures: number;
   pinLockedUntil: number | null;
+  /** Commande de paiement en cours de ce client (identifiant + jeton secret de suivi). */
+  pendingPayment: PendingPayment | null;
 }
 
-/** Imprimante de cet appareil. */
-export interface PrinterSettings {
-  /** Largeur du papier : 58 mm (32 caractères) ou 80 mm (48 caractères). */
-  paperWidth: 58 | 80;
-  /** Imprimer le ticket de caisse automatiquement après l'encaissement. */
-  autoPrintReceipt: boolean;
-  /** Imprimer les bons de commande en cuisine / au bar à leur arrivée. */
-  autoPrintKitchen: boolean;
-  /** Imprimer sans accents (imprimantes qui n'ont pas la table de caractères européenne). */
-  asciiOnly: boolean;
-}

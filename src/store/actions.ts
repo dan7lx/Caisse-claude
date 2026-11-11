@@ -70,6 +70,8 @@ export interface PaymentExtras {
   tip?: number;
   discountPct?: number;
   cashReceived?: number | null;
+  /** TVA choisie à l'encaissement (0, 6, 12 ou 21 %). */
+  vatRate?: number | null;
 }
 
 export const payOrder = (orderId: string, payment: PaymentMethod, extras: PaymentExtras = {}): Op => ({

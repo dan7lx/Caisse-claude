@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Image, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { licenseStatus, type LicenseStatus } from '../license/license';
+import { useLicenseServerSync } from '../license/useLicenseServer';
 import { useNow, useStore } from '../store/StoreProvider';
 import { colors, fonts } from '../theme';
 import { Emoji3D } from './Emoji3D';
@@ -20,12 +21,15 @@ const todayKey = (now: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-/** Bloque l'application dès que l'abonnement n'est plus payé (vérifié toutes les 15 s). */
+/** Bloque l'application dès que l'abonnement n'est plus payé (vérifié toutes les 15 s et auprès du serveur). */
 export function LicenseGate({ children }: { children: React.ReactNode }) {
   const { state } = useStore();
   const now = useNow(15000);
+  const pathname = usePathname();
+  useLicenseServerSync();
   const status = licenseStatus(state.license, now);
-  if (!status.active) return <LockScreen status={status} />;
+  // L'Espace créateur reste accessible au créateur, même sur un appareil sans abonnement.
+  if (!status.active && !pathname.startsWith('/createur')) return <LockScreen status={status} />;
   return (
     <>
       {children}
@@ -36,6 +40,7 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
 
 function LockScreen({ status }: { status: LicenseStatus }) {
   const { state, device, leaveLobby, invite } = useStore();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [joining, setJoining] = useState(invite !== null);
   const expired = status.plan === 'mensuel' && status.dueDate !== null;
@@ -59,11 +64,11 @@ function LockScreen({ status }: { status: LicenseStatus }) {
         <Emoji3D emoji={expired ? '🔒' : demoOver ? '⌛' : '✨'} size={34} />
         <View style={styles.flex}>
           <Text style={styles.alertTitle}>
-            {expired ? 'Application bloquée' : demoOver ? 'Fin du mode démo' : 'Activez votre abonnement'}
+            {expired ? 'Abonnement terminé' : demoOver ? 'Fin du mode démo' : 'Activez votre abonnement'}
           </Text>
           <Text style={styles.alertText}>
             {expired
-              ? `Le paiement dû le ${formatLongDate(status.dueDate ?? Date.now())} n’a pas été effectué. L’accès reprend dès l’activation.`
+              ? `Votre abonnement a pris fin le ${formatLongDate(status.dueDate ?? Date.now())}. Effectuez un nouveau paiement : l’accès reprend dès l’activation de votre nouvelle clé.`
               : demoOver
                 ? 'Vos 24 h d’essai gratuit sont terminées. Choisissez une formule et effectuez le paiement pour continuer.'
                 : 'Choisissez une formule, ou essayez gratuitement 24 h avec le mode démo.'}
@@ -97,6 +102,10 @@ function LockScreen({ status }: { status: LicenseStatus }) {
       {device.lobby ? (
         <Button title="Quitter le lobby de l’équipe" variant="ghost" icon="exit-outline" onPress={leaveLobby} />
       ) : null}
+
+      <Text style={styles.creator} accessibilityRole="link" onPress={() => router.push('/createur')}>
+        Espace créateur
+      </Text>
     </ScrollView>
   );
 }
@@ -187,5 +196,6 @@ const styles = StyleSheet.create({
   sheetTitle: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 24, color: colors.text },
   sheetText: { color: colors.text, fontSize: 15, lineHeight: 22 },
   bold: { fontWeight: '800' },
+  creator: { color: colors.onDarkMuted, fontSize: 12, textAlign: 'center', textDecorationLine: 'underline', paddingVertical: 8 },
   sheetActions: { flexDirection: 'row', gap: 10 },
 });

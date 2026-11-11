@@ -16,9 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { type CheckoutResult, CheckoutSheet } from '../../components/CheckoutSheet';
 import { Emoji3D } from '../../components/Emoji3D';
-import { PrintPreview } from '../../components/PrintPreview';
-import { printDoc } from '../../print';
-import { receiptDoc, type PrintDoc as PrintDocType } from '../../print/doc';
+import { TicketPreview } from '../../components/TicketPreview';
+import { receiptDoc, type TicketDoc } from '../../ticket/doc';
 import { HeaderTitle } from '../../components/HeaderParts';
 import { MenuItemCard } from '../../components/MenuItemCard';
 import { useToast } from '../../components/Toast';
@@ -59,8 +58,7 @@ export default function OrderScreen() {
   const [searching, setSearching] = useState(false);
   const [ticketOpen, setTicketOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
-  const [receipt, setReceipt] = useState<PrintDocType | null>(null);
-  const [preview, setPreview] = useState<PrintDocType | null>(null);
+  const [receipt, setReceipt] = useState<TicketDoc | null>(null);
   const [moving, setMoving] = useState(false);
   const [noteLine, setNoteLine] = useState<OrderLine | null>(null);
   const [noteText, setNoteText] = useState('');
@@ -177,15 +175,13 @@ export default function OrderScreen() {
       tip: result.tip,
       discountPct: result.discountPct,
       cashReceived: result.cashReceived,
+      vatRate: result.vatRate,
     };
     const doc = receiptDoc(state, paidOrder);
     toast(`${order.label} encaissée · ${formatPrice(orderTotal(paidOrder) + result.tip, currency)}`, '💰');
     setPayOpen(false);
     setTicketOpen(false);
     setReceipt(doc);
-    if (device.printer.autoPrintReceipt) {
-      printDoc(doc, device.printer).catch((e: unknown) => notify('Impression', e instanceof Error ? e.message : 'Impression impossible.'));
-    }
   };
 
   const freeTables = state.tables.filter(
@@ -201,7 +197,6 @@ export default function OrderScreen() {
       }}
       onSend={send}
       onPay={() => setPayOpen(true)}
-      onPrintBill={() => setPreview(receiptDoc(state, order))}
       onMoveTable={state.tables.length > 1 ? () => setMoving(true) : undefined}
       onCancel={cancel}
     />
@@ -409,7 +404,7 @@ export default function OrderScreen() {
 
       <CheckoutSheet order={order} visible={payOpen} onClose={() => setPayOpen(false)} onConfirm={pay} />
 
-      <PrintPreview
+      <TicketPreview
         doc={receipt}
         closeLabel="Terminer"
         onClose={() => {
@@ -417,7 +412,6 @@ export default function OrderScreen() {
           router.back();
         }}
       />
-      <PrintPreview doc={preview} onClose={() => setPreview(null)} />
 
       <FormModal visible={moving} title="Changer de table" onClose={() => setMoving(false)}>
         <Text style={styles.moveHint}>Choisissez la table libre où installer {order.label} :</Text>

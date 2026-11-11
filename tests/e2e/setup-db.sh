@@ -28,4 +28,8 @@ fi
 cp supabase/schema.sql "$DIR/schema.sql"
 chown postgres "$DIR/schema.sql"
 as_pg "$PSQL -d caisse -f $DIR/schema.sql" >/dev/null
+# Mot de passe du tableau de bord créateur pour les tests (variable d'environnement, jamais dans le dépôt).
+if [ -n "${CAISSE_DASHBOARD_PASSWORD:-}" ]; then
+  as_pg "$PSQL -d caisse -c \"update caisse_admin set failed = 0, locked_until = null; select caisse_admin_set_password('$CAISSE_DASHBOARD_PASSWORD');\"" >/dev/null
+fi
 echo "Base de test prête (port 5499, socket $DIR)."

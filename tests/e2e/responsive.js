@@ -49,8 +49,7 @@ async function overflow(page) {
       await page.screenshot({ path: `${out}/${name}-${label}.png` });
     };
     await check('accueil');
-    await page.getByLabel('Code d’activation').fill(CODES.admin);
-    await page.getByRole('button', { name: 'Activer', exact: true }).click();
+    await CODES.activateWithKey(page, 'vie');
     await page.getByRole('button', { name: /^Table 1,/ }).waitFor();
     await page.waitForTimeout(2500); // laisse disparaître la notification
     await check('salle');
@@ -65,10 +64,16 @@ async function overflow(page) {
     await check('commande');
     await page.goBack();
     await page.getByText('Gestion', { exact: true }).last().click();
+    // Première ouverture de la Gestion : création du code gérant (saisi deux fois).
+    await page.getByText('Créez le code gérant').waitFor();
+    for (const round of [0, 1]) {
+      for (const k of '2580') await page.getByRole('button', { name: k, exact: true }).last().click();
+      if (round === 0) await page.getByRole('button', { name: 'Continuer', exact: true }).last().click();
+    }
     await page.getByText('Identité & logo').waitFor();
     await page.waitForTimeout(300);
     await check('gestion');
-    await page.getByRole('button', { name: 'Équipe' }).first().click();
+    await page.getByRole('button', { name: 'Équipe' }).filter({ visible: true }).first().click();
     await page.getByRole('button', { name: 'Créer un lobby' }).click();
     await check('equipe');
     console.log(`${name.padEnd(18)} ${report.join(' · ')}`);

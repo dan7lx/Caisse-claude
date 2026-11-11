@@ -2,14 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { DEMO_HOURS, PRICES } from '../config';
+import { DEMO_HOURS } from '../config';
 import { applyCode, formatCountdown, isDemoCode, licenseStatus, startDemo } from '../license/license';
+import { useBilling, useRedeemKey } from '../license/useLicenseServer';
 import { setLicense } from '../store/actions';
 import { useNow, useStore } from '../store/StoreProvider';
 import { colors, fonts, shadow } from '../theme';
 import { formatPrice } from '../utils/format';
 import { Emoji3D } from './Emoji3D';
-import { PaymentSheet } from './PaymentSheet';
+import { PaymentFlow, planLabel, STATUS_TEXT } from './PaymentFlow';
 import { useToast } from './Toast';
 import { Button, PinPad } from './ui';
 
@@ -20,28 +21,40 @@ interface Props {
 
 /** Formules (mensuelle, à vie), mode démo, paiement et saisie d'un code d'activation. */
 export function SubscriptionPanel({ dark }: Props) {
-  const { state, dispatch, setSession } = useStore();
+  const { state, device, dispatch } = useStore();
   const toast = useToast();
+  const billing = useBilling();
+  const redeem = useRedeemKey();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [paying, setPaying] = useState<'mensuel' | 'vie' | null>(null);
   const [demoPad, setDemoPad] = useState(false);
+  const pending = device.pendingPayment;
 
-  const submit = () => {
+  const submit = async () => {
     const result = applyCode(state.license, code);
     if (result.kind === 'invalid') {
       setError(result.message);
       return;
     }
-    dispatch(setLicense(result.license));
+    if (result.kind === 'demo') {
+      dispatch(setLicense(result.license));
+      setCode('');
+      setError(null);
+      toast(result.message, '🎁');
+      return;
+    }
+    setBusy(true);
+    const r = await redeem(result.key);
+    setBusy(false);
+    if ('error' in r) {
+      setError(r.error);
+      return;
+    }
     setCode('');
     setError(null);
-    if (result.kind === 'admin') {
-      setSession({ admin: true, manager: true });
-      toast('Mode administrateur : licence à vie débloquée', '🛡️');
-    } else {
-      toast(result.message, result.kind === 'demo' ? '🎁' : '🎉');
-    }
+    toast(r.plan === 'vie' ? 'Licence à vie activée' : 'Abonnement activé pour 30 jours', '🎉');
   };
 
   const fg = dark ? colors.onDark : colors.text;
@@ -53,15 +66,15 @@ export function SubscriptionPanel({ dark }: Props) {
         <PlanCard
           emoji="🗓️"
           title="Mensuel"
-          price={formatPrice(PRICES.mensuel)}
-          period="/ mois"
-          lines={['Sans engagement', 'Échéance le 1er de chaque mois', 'Rappel 5 jours avant']}
+          price={formatPrice(billing.price_monthly)}
+          period="/ 30 jours"
+          lines={['Sans engagement', 'Valable 30 jours dès l’activation', 'Rappel 5 jours avant la fin']}
           onPay={() => setPaying('mensuel')}
         />
         <PlanCard
           emoji="💎"
           title="À vie"
-          price={formatPrice(PRICES.vie)}
+          price={formatPrice(billing.price_lifetime)}
           period="une fois"
           lines={['Paiement unique', 'Plus aucune échéance', 'Toutes les mises à jour']}
           highlight
@@ -69,15 +82,31 @@ export function SubscriptionPanel({ dark }: Props) {
         />
       </View>
 
+      {pending ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Voir ma commande en cours"
+          onPress={() => setPaying(pending.plan)}
+          style={({ pressed }) => [styles.pending, pressed && { opacity: 0.85 }]}
+        >
+          <Emoji3D emoji={STATUS_TEXT.preuve_envoyee.emoji} size={34} />
+          <View style={styles.flex}>
+            <Text style={styles.pendingTitle}>Paiement en cours · {planLabel(pending.plan)}</Text>
+            <Text style={styles.pendingText}>Touchez pour voir le virement, envoyer la preuve ou saisir votre clé.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.gold} />
+        </Pressable>
+      ) : null}
+
       <DemoCard dark={dark} onActivate={() => setDemoPad(true)} />
 
       <View style={[styles.codeBox, dark ? styles.codeBoxDark : styles.codeBoxLight]}>
         <View style={styles.codeHead}>
           <Emoji3D emoji="🔑" size={30} />
-          <Text style={[styles.codeTitle, { color: fg }]}>Code d’activation</Text>
+          <Text style={[styles.codeTitle, { color: fg }]}>J’ai reçu ma clé</Text>
         </View>
         <Text style={[styles.codeHint, { color: muted }]}>
-          Après paiement, saisissez le code reçu. Identifiant de licence :{' '}
+          Après la confirmation de votre virement, saisissez la clé reçue sur WhatsApp. Identifiant de licence :{' '}
           <Text style={[styles.licenseId, { color: colors.gold }]} selectable>
             {state.license.id}
           </Text>
@@ -89,7 +118,7 @@ export function SubscriptionPanel({ dark }: Props) {
               setCode(t);
               setError(null);
             }}
-            placeholder="ex : M202612-3FA9C1"
+            placeholder="XXXX-XXXX-XXXX-XXXX"
             placeholderTextColor={muted}
             autoCapitalize="characters"
             autoCorrect={false}
@@ -97,12 +126,12 @@ export function SubscriptionPanel({ dark }: Props) {
             accessibilityLabel="Code d’activation"
             style={[styles.codeInput, dark ? styles.codeInputDark : styles.codeInputLight]}
           />
-          <Button title="Activer" onPress={submit} disabled={!code.trim()} />
+          <Button title={busy ? '…' : 'Activer'} onPress={submit} disabled={!code.trim() || busy} />
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
 
-      <PaymentSheet plan={paying} onClose={() => setPaying(null)} />
+      <PaymentFlow plan={paying} onClose={() => setPaying(null)} />
 
       <Modal visible={demoPad} animationType="slide" onRequestClose={() => setDemoPad(false)}>
         <View style={styles.pinScreen}>
@@ -304,5 +333,17 @@ const styles = StyleSheet.create({
   codeInputDark: { backgroundColor: colors.ink, borderColor: colors.ink3, color: colors.onDark },
   codeInputLight: { backgroundColor: '#FFFFFF', borderColor: colors.border, color: colors.text },
   error: { color: '#E8857C', fontWeight: '700' },
+  pending: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: colors.ink2,
+    borderWidth: 2,
+    borderColor: colors.gold,
+  },
+  pendingTitle: { color: colors.onDark, fontWeight: '800', fontSize: 15 },
+  pendingText: { color: colors.onDarkMuted, fontSize: 13, marginTop: 2 },
   pinScreen: { flex: 1, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
 });

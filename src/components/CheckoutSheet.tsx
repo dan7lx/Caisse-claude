@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { includedVat, orderSubtotal } from '../store/selectors';
+import { VAT_RATES } from '../config';
+import { orderSubtotal, vatOn } from '../store/selectors';
 import { useStore } from '../store/StoreProvider';
 import type { Order, PaymentMethod } from '../store/types';
 import { colors, fonts, paymentLabel } from '../theme';
@@ -16,6 +17,8 @@ export interface CheckoutResult {
   tip: number;
   discountPct: number;
   cashReceived: number | null;
+  /** TVA choisie (0, 6, 12 ou 21 %), ajoutée au montant. */
+  vatRate: number;
 }
 
 interface Props {
@@ -33,7 +36,7 @@ const METHODS: { m: PaymentMethod; emoji: string }[] = [
   { m: 'autre', emoji: '🧾' },
 ];
 
-/** Encaissement : remise, pourboire, partage de l'addition, moyen de paiement et monnaie à rendre. */
+/** Encaissement : TVA (choix obligatoire), remise, pourboire, partage, moyen de paiement et monnaie à rendre. */
 export function CheckoutSheet({ order, visible, onClose, onConfirm }: Props) {
   const { state } = useStore();
   const c = state.settings.currency;
@@ -44,10 +47,14 @@ export function CheckoutSheet({ order, visible, onClose, onConfirm }: Props) {
   const [method, setMethod] = useState<PaymentMethod>('carte');
   const [cashText, setCashText] = useState('');
   const [split, setSplit] = useState(1);
+  // Aucun taux présélectionné : le choix de la TVA est obligatoire avant d'encaisser.
+  const [vatRate, setVatRate] = useState<number | null>(null);
 
   const subtotal = orderSubtotal(order);
   const discount = Math.round((subtotal * discountPct) / 100);
-  const total = subtotal - discount;
+  const net = subtotal - discount;
+  const vat = vatRate === null ? 0 : vatOn(net, vatRate);
+  const total = net + vat;
   const tip = useMemo(() => {
     if (tipMode === 'aucun') return 0;
     if (tipMode === 'arrondi') return (Math.ceil(total / 100) * 100 === total ? total + 100 : Math.ceil(total / 100) * 100) - total;
@@ -63,8 +70,9 @@ export function CheckoutSheet({ order, visible, onClose, onConfirm }: Props) {
   ).slice(0, 4);
 
   const confirm = () => {
+    if (vatRate === null) return;
     haptic.success();
-    onConfirm({ payment: method, tip, discountPct, cashReceived: method === 'especes' ? cash : null });
+    onConfirm({ payment: method, tip, discountPct, cashReceived: method === 'especes' ? cash : null, vatRate });
   };
 
   return (
@@ -73,11 +81,32 @@ export function CheckoutSheet({ order, visible, onClose, onConfirm }: Props) {
         <Text style={styles.label}>{order.label} · n°{order.number}</Text>
         <Text style={styles.amount}>{p(toPay)}</Text>
         <Text style={styles.meta}>
-          dont TVA {state.settings.taxRate} % : {p(includedVat(total, state.settings.taxRate))}
+          {vatRate === null ? `${p(net)} HTVA · choisissez la TVA` : `${p(net)} HT + TVA ${vatRate} % : ${p(vat)}`}
           {tip ? ` · pourboire ${p(tip)}` : ''}
         </Text>
         {drafts ? <Text style={styles.warning}>{drafts} article(s) non envoyé(s) seront envoyés automatiquement.</Text> : null}
       </View>
+
+      <Section emoji="🏛️" title="TVA (obligatoire)">
+        <View style={styles.vatRow}>
+          {VAT_RATES.map((r) => (
+            <Pressable
+              key={r}
+              accessibilityRole="button"
+              accessibilityState={{ selected: vatRate === r }}
+              accessibilityLabel={`TVA ${r} %`}
+              onPress={() => {
+                haptic.tap();
+                setVatRate(r);
+              }}
+              style={[styles.vat, vatRate === r && styles.vatActive]}
+            >
+              <Text style={[styles.vatText, vatRate === r && styles.vatTextActive]}>{r} %</Text>
+            </Pressable>
+          ))}
+        </View>
+        {vatRate === null ? <Text style={styles.vatHint}>Touchez le taux de TVA à appliquer : il s’ajoute au montant.</Text> : null}
+      </Section>
 
       <Section emoji="🏷️" title="Remise">
         <View style={styles.chips}>
@@ -85,7 +114,7 @@ export function CheckoutSheet({ order, visible, onClose, onConfirm }: Props) {
             <Choice key={d} label={d ? `-${d} %` : 'Aucune'} selected={discountPct === d} onPress={() => setDiscountPct(d)} />
           ))}
         </View>
-        {discount ? <Text style={styles.meta}>Sous-total {p(subtotal)} · remise -{p(discount)}</Text> : null}
+        {discount ? <Text style={styles.meta}>Sous-total {p(subtotal)} · remise -{p(discount)} (avant TVA)</Text> : null}
       </Section>
 
       <Section emoji="💝" title="Pourboire">
@@ -163,11 +192,11 @@ export function CheckoutSheet({ order, visible, onClose, onConfirm }: Props) {
       </Section>
 
       <Button
-        title={`Encaisser ${p(toPay)}`}
-        icon="checkmark-circle"
+        title={vatRate === null ? 'Choisissez la TVA' : `Encaisser ${p(toPay)}`}
+        icon={vatRate === null ? 'alert-circle-outline' : 'checkmark-circle'}
         large
         onPress={confirm}
-        disabled={method === 'especes' && change !== null && change < 0}
+        disabled={vatRate === null || (method === 'especes' && change !== null && change < 0)}
       />
     </FormModal>
   );
@@ -236,6 +265,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     color: colors.text,
   },
+  vatRow: { flexDirection: 'row', gap: 8 },
+  vat: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: '#FFFFFF',
+  },
+  vatActive: { backgroundColor: colors.ink, borderColor: colors.gold },
+  vatText: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 20, color: colors.text },
+  vatTextActive: { color: colors.gold },
+  vatHint: { fontSize: 13, color: colors.ready, fontWeight: '700' },
   splitRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   splitText: { flex: 1, fontWeight: '700', color: colors.text },
   methods: { flexDirection: 'row', gap: 8 },

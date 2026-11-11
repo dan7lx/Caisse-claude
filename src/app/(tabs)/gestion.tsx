@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Image, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useCreatorCode } from '../../components/CreatorGate';
 import { Emoji3D } from '../../components/Emoji3D';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { SupportCard } from '../../components/SupportCard';
@@ -30,6 +31,7 @@ type PinStep = null | 'current' | 'new' | 'confirm';
 
 function ManagementScreen() {
   const { state, device, session, setSession, dispatch } = useStore();
+  const creator = useCreatorCode();
   const router = useRouter();
   const toast = useToast();
   const { small, phone } = useLayout();
@@ -102,7 +104,7 @@ function ManagementScreen() {
         <ListRow
           emoji="⚙️"
           title="Préférences"
-          subtitle={`TVA ${s.taxRate} % · alerte cuisine ${s.alertMinutes} min · ${s.currency}`}
+          subtitle={`Alerte cuisine ${s.alertMinutes} min · ${s.currency} · sécurité`}
           chevron
           onPress={() => router.push('/reglages/restaurant')}
         />
@@ -139,17 +141,6 @@ function ManagementScreen() {
         />
       </Group>
 
-      <SectionTitle>Caisse & impression</SectionTitle>
-      <Group>
-        <ListRow
-          emoji="🧾"
-          title="Imprimante & tickets"
-          subtitle={`Bluetooth ou impression du téléphone · papier ${device.printer.paperWidth} mm`}
-          chevron
-          onPress={() => router.push('/reglages/imprimante')}
-        />
-      </Group>
-
       <SectionTitle>Activité & abonnement</SectionTitle>
       <Group>
         <ListRow emoji="📊" title="Historique & statistiques" subtitle="Ventes, paiements, meilleures ventes" chevron onPress={() => router.push('/reglages/historique')} />
@@ -166,7 +157,7 @@ function ManagementScreen() {
           onPress={startPinChange}
         />
         {session.admin ? (
-          <ListRow emoji="🛡️" title="Administration" subtitle="Licences, accès, codes clients, coordonnées bancaires" chevron onPress={() => router.push('/reglages/admin')} />
+          <ListRow emoji="🛡️" title="Administration" subtitle="Accès du gérant, lobby" chevron onPress={() => router.push('/reglages/admin')} />
         ) : null}
       </Group>
 
@@ -175,28 +166,36 @@ function ManagementScreen() {
         <ListRow
           emoji="🔄"
           title="Recharger la carte de démonstration"
-          subtitle="Remplace la carte, les tables et l’historique (garde l’identité)"
+          subtitle="Remplace la carte, les tables et l’historique · code créateur"
           onPress={() =>
-            confirm('Recharger la démo ?', 'La carte, les tables et les commandes seront remplacées.', () => dispatch(resetDemo(state.settings, state.staff)), 'Recharger')
+            creator.ask(() =>
+              confirm('Recharger la démo ?', 'La carte, les tables et les commandes seront remplacées.', () => dispatch(resetDemo(state.settings, state.staff)), 'Recharger'),
+            )
           }
         />
         <ListRow
           emoji="🗑️"
           title="Partir de zéro"
-          subtitle="Vide la carte, les tables et les commandes"
+          subtitle="Vide la carte, les tables et les commandes · code créateur"
           onPress={() =>
-            confirm(
-              'Tout effacer ?',
-              hasOpenOrders
-                ? 'Des commandes sont en cours. Elles seront aussi supprimées. Action définitive.'
-                : 'La carte, les tables et l’historique seront supprimés. Action définitive.',
-              () => dispatch(wipeAll(state.settings, state.staff)),
-              'Tout effacer',
+            creator.ask(() =>
+              confirm(
+                'Tout effacer ?',
+                hasOpenOrders
+                  ? 'Des commandes sont en cours. Elles seront aussi supprimées. Action définitive.'
+                  : 'La carte, les tables et l’historique seront supprimés. Action définitive.',
+                () => dispatch(wipeAll(state.settings, state.staff)),
+                'Tout effacer',
+              ),
             )
           }
         />
       </Group>
+      {creator.modal}
       <SupportCard />
+      <Text style={styles.creatorLink} accessibilityRole="link" onPress={() => router.push('/createur')}>
+        Espace créateur
+      </Text>
       <Text style={styles.footnote}>
         {device.lobby ? 'Les modifications sont partagées avec toute l’équipe du lobby.' : 'Les données sont enregistrées sur cet appareil.'}
       </Text>
@@ -272,6 +271,7 @@ function Stat({ emoji, label, value }: { emoji: string; label: string; value: st
 }
 
 const styles = StyleSheet.create({
+  creatorLink: { color: colors.muted, fontSize: 12, textAlign: 'center', textDecorationLine: 'underline', paddingVertical: 6 },
   screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   content: { padding: 16, paddingBottom: 48, width: '100%', maxWidth: 820, alignSelf: 'center' },

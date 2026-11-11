@@ -35,8 +35,12 @@ interface Props {
   compact?: boolean;
 }
 
+/** Orange des 5 jours de rappel et rouge du jour d'échéance. */
+const ORANGE = '#E8891A';
+const ORANGE_SOFT = '#FCE2C4';
+
 /**
- * Petit calendrier de l'abonnement : échéance du 1er (or), jours de rappel (ambre), aujourd'hui (cerclé).
+ * Petit calendrier de l'abonnement : 5 jours de rappel (orange), jour de fin / blocage (rouge), aujourd'hui (cerclé).
  * Affiche le mois en cours et, si l'échéance tombe le mois suivant, ce mois aussi.
  */
 export function PaymentCalendar({ status, now, compact }: Props) {
@@ -73,8 +77,8 @@ export function PaymentCalendar({ status, now, compact }: Props) {
         ))}
       </View>
       <View style={styles.legend}>
-        <Legend color={colors.gold} label="Échéance (le 1er)" />
-        <Legend color={colors.readySoft} border={colors.ready} label="Rappel (5 jours avant)" />
+        <Legend color={colors.danger} label="Fin de l’abonnement (blocage)" />
+        <Legend color={ORANGE_SOFT} border={ORANGE} label="Rappel (5 jours avant)" />
         <Legend color="transparent" border={colors.ink} label="Aujourd’hui" />
       </View>
     </View>
@@ -129,7 +133,7 @@ function MonthGrid({
                   isToday && styles.dayToday,
                 ]}
               >
-                <Text style={[styles.dayText, m === 'due' && styles.dayTextDue]}>{day}</Text>
+                <Text style={[styles.dayText, m === 'reminder' && styles.dayTextReminder, m === 'due' && styles.dayTextDue]}>{day}</Text>
               </View>
             </View>
           );
@@ -161,11 +165,12 @@ const styles = StyleSheet.create({
   cellCompact: { paddingVertical: 1 },
   dayCompact: { width: 28, height: 28, borderRadius: 14 },
   monthTitleCompact: { fontSize: 16, marginBottom: 4 },
-  dayReminder: { backgroundColor: colors.readySoft, borderColor: colors.readySoft },
-  dayDue: { backgroundColor: colors.gold, borderColor: colors.gold },
+  dayReminder: { backgroundColor: ORANGE_SOFT, borderColor: ORANGE },
+  dayDue: { backgroundColor: colors.danger, borderColor: colors.danger },
   dayToday: { borderColor: colors.ink },
   dayText: { fontSize: 14, color: colors.text, fontWeight: '600' },
-  dayTextDue: { color: colors.ink, fontWeight: '800' },
+  dayTextDue: { color: '#FFFFFF', fontWeight: '800' },
+  dayTextReminder: { color: '#8A4A05', fontWeight: '800' },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2 },

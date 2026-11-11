@@ -5,14 +5,7 @@ const http = require('http');
 const { Pool } = require('pg');
 
 const pool = new Pool({ host: process.argv[2] || '/var/tmp/caisse-pg', port: 5499, user: 'postgres', database: 'caisse' });
-const ALLOWED = new Set([
-  'caisse_create_lobby',
-  'caisse_join_lobby',
-  'caisse_push',
-  'caisse_pull',
-  'caisse_save_snapshot',
-  'caisse_close_lobby',
-]);
+// Comme Supabase : toute fonction peut être demandée, mais les droits du rôle anon décident (GRANT/REVOKE).
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'apikey, authorization, content-type',
@@ -26,7 +19,7 @@ http
       return res.end();
     }
     const m = /^\/rest\/v1\/rpc\/([a-z_]+)$/.exec(req.url);
-    if (!m || !ALLOWED.has(m[1]) || !req.headers.apikey) {
+    if (!m || !m[1].startsWith('caisse_') || !req.headers.apikey) {
       res.writeHead(404, cors);
       return res.end('{"message":"not found"}');
     }

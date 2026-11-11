@@ -16,12 +16,11 @@ interface Props {
   onSend: () => void;
   onPay: () => void;
   onCancel: () => void;
-  onPrintBill?: () => void;
   onMoveTable?: () => void;
 }
 
 /** Détail du ticket d'une table : couverts, articles à envoyer, envois, total et actions. */
-export function TicketContent({ order, onNote, onSend, onPay, onCancel, onPrintBill, onMoveTable }: Props) {
+export function TicketContent({ order, onNote, onSend, onPay, onCancel, onMoveTable }: Props) {
   const { state, dispatch } = useStore();
   const currency = state.settings.currency;
   const readOnly = order.status !== 'ouverte';
@@ -136,7 +135,7 @@ export function TicketContent({ order, onNote, onSend, onPay, onCancel, onPrintB
       ) : null}
 
       <View style={styles.totalBox}>
-        <Text style={styles.totalLabel}>Total</Text>
+        <Text style={styles.totalLabel}>Total HTVA</Text>
         <Text style={styles.totalValue}>{formatPrice(total, currency)}</Text>
       </View>
 
@@ -154,9 +153,6 @@ export function TicketContent({ order, onNote, onSend, onPay, onCancel, onPrintB
             onPress={onPay}
           />
           <View style={styles.tools}>
-            {onPrintBill && order.lines.length ? (
-              <Button title="Addition" icon="print-outline" small variant="secondary" onPress={onPrintBill} style={styles.flex} />
-            ) : null}
             {onMoveTable && order.tableId ? (
               <Button title="Changer de table" icon="swap-horizontal" small variant="secondary" onPress={onMoveTable} style={styles.flex} />
             ) : null}

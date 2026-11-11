@@ -54,8 +54,7 @@ const tab = (page, name) => page.getByText(name, { exact: true }).last();
   attach(a, 'A', errors);
   await a.clock.setFixedTime(new Date('2026-11-20T21:30:00+01:00'));
   await a.goto(APP);
-  await a.getByLabel('Code d’activation').fill(CODES.admin);
-  await a.getByRole('button', { name: 'Activer', exact: true }).click();
+  await CODES.activateWithKey(a, 'vie');
   await a.getByRole('button', { name: /^Table 1,/ }).click();
   await a.getByRole('tab', { name: 'Plats' }).click();
   await a.getByRole('button', { name: /^Ajouter Pavé de saumon/ }).click();
@@ -64,30 +63,44 @@ const tab = (page, name) => page.getByText(name, { exact: true }).last();
   await a.getByRole('button', { name: /^Table 1, En cours/ }).click();
   await a.getByRole('button', { name: 'Encaisser', exact: true }).last().click();
   await a.getByText('Pourboire', { exact: true }).waitFor();
+  // TVA obligatoire : sans choix, impossible d'encaisser.
+  if (!(await a.getByRole('button', { name: 'Choisissez la TVA' }).isDisabled())) throw new Error('encaissement possible sans TVA');
+  await a.getByRole('button', { name: 'TVA 12 %', exact: true }).click();
+  await a.getByText('38,00 € HT + TVA 12 % : 4,56 €', { exact: false }).waitFor();
   await a.getByRole('button', { name: '10 %', exact: true }).click();
   await a.getByRole('button', { name: 'Espèces', exact: true }).click();
   await a.getByLabel('Espèces reçues').fill('50');
   await a.getByText('À rendre').waitFor();
   await shot(a, 'v4-03-encaissement');
-  await a.getByRole('button', { name: /^Encaisser 41,80/ }).click();
+  await a.getByRole('button', { name: /^Encaisser 46,82/ }).click();
   await a.getByText('TICKET DE CAISSE').waitFor();
-  console.log('Encaissement : pourboire 10 % (3,80 €), monnaie rendue 8,20 €, ticket de caisse affiché');
+  await a.getByText(/TVA 12 %\s+4,56 €/).waitFor();
+  await a.getByText(/Rendu\s+3,18 €/).waitFor();
+  if (await a.getByRole('button', { name: 'Imprimer', exact: true }).count()) throw new Error('le bouton Imprimer existe encore');
+  console.log('Encaissement : TVA 12 % ajoutée (4,56 €), pourboire 4,26 €, monnaie rendue 3,18 €, ticket affiché sans impression');
   await a.waitForTimeout(900);
   await shot(a, 'v4-04-ticket');
-  await a.getByRole('button', { name: 'Imprimer', exact: true }).click();
-  await a.getByText('Impression lancée').waitFor();
-  console.log('Impression lancée (fenêtre d’impression du téléphone)');
   await a.getByRole('button', { name: 'Terminer', exact: true }).click();
 
   await tab(a, 'Gestion').click();
+  // Première ouverture de la Gestion : création du code gérant.
+  await a.getByText('Créez le code gérant').waitFor();
+  await pin(a, '2580', 'Continuer');
+  await pin(a, '2580');
+  if (await a.getByText('Imprimante & tickets').count()) throw new Error('l’option Imprimante & tickets existe encore');
   await a.getByText('Historique & statistiques').click();
-  await a.getByText('3,80 €').first().waitFor();
-  console.log('Historique : pourboire 3,80 € comptabilisé');
+  await a.getByText('4,26 €').first().waitFor();
+  await a.getByText('TVA collectée').waitFor();
+  if (await a.getByRole('button', { name: 'Imprimer le rapport' }).count()) throw new Error('Imprimer le rapport existe encore');
+  console.log('Historique : pourboire 4,26 € et TVA collectée, sans option d’impression');
   await shot(a, 'v4-05-historique');
-  await a.getByRole('button', { name: 'Imprimer le rapport' }).click();
-  await a.getByText('RAPPORT DES VENTES').waitFor();
-  await shot(a, 'v4-06-rapport');
-  await a.getByRole('button', { name: 'Fermer', exact: true }).last().click();
+  // Effacer l'historique : code créateur exigé.
+  await a.getByRole('button', { name: 'Effacer l’historique des tickets' }).click();
+  await a.getByText('Code créateur', { exact: true }).waitFor();
+  await pin(a, '0000');
+  await a.getByText('Code créateur incorrect.').waitFor();
+  await a.getByRole('button', { name: 'Annuler', exact: true }).last().click();
+  console.log('Effacer l’historique : code créateur exigé, mauvais code refusé');
   await a.goBack();
 
   // Clôture de minuit : on passe au lendemain et on recharge l'application
@@ -97,9 +110,7 @@ const tab = (page, name) => page.getByText(name, { exact: true }).last();
     if (n) throw new Error('licence perdue');
   });
   await tab(a, 'Gestion').click();
-  // Après rechargement, la session gérant est refermée : création du code gérant.
-  await a.getByText('Créez le code gérant').waitFor();
-  await pin(a, '2580', 'Continuer');
+  // Après rechargement, la session gérant est refermée : le code gérant est redemandé.
   await pin(a, '2580');
   await a.getByText('CA du jour').waitFor();
   await a.getByText('0,00 €').first().waitFor();
@@ -199,8 +210,7 @@ const tab = (page, name) => page.getByText(name, { exact: true }).last();
   await k.getByRole('button', { name: 'Quitter le lobby' }).click();
   // Hors lobby, ce téléphone d'employé redevient tel qu'à l'origine (sans abonnement propre).
   await k.getByText('Activez votre abonnement').waitFor({ timeout: 10000 });
-  await k.getByLabel('Code d’activation').fill(CODES.admin);
-  await k.getByRole('button', { name: 'Activer', exact: true }).click();
+  await CODES.activateWithKey(k, 'vie');
   await k.getByText('Commandes', { exact: true }).last().waitFor({ timeout: 10000 });
   await k.getByText('Salle', { exact: true }).last().waitFor();
   console.log('Lobby quitté : plus de restriction de poste, tous les onglets reviennent');

@@ -207,7 +207,7 @@ export function createDevice(): DeviceState {
     lobby: null,
     server: null,
     reminderDismissedOn: null,
-    printer: { paperWidth: 58, autoPrintReceipt: false, autoPrintKitchen: false, asciiOnly: false },
+    pendingPayment: null,
     pinFailures: 0,
     pinLockedUntil: null,
   };

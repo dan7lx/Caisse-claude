@@ -241,7 +241,7 @@ function ArticlesScreen() {
             <EmojiPicker value={draft.emoji} inherited={draftCategory?.emoji ?? '🍽️'} onChange={(emoji) => setDraft({ ...draft, emoji })} />
             <Field label="Nom" value={draft.name} onChangeText={(name) => setDraft({ ...draft, name })} placeholder="ex : Burger maison" />
             <Field
-              label={`Prix TTC (${state.settings.currency})`}
+              label={`Prix HTVA (${state.settings.currency})`}
               value={draft.price}
               onChangeText={(price) => setDraft({ ...draft, price })}
               keyboardType="decimal-pad"

@@ -3,18 +3,18 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { canCreateLobby, canManage, hashStaffPin, identifyCode, identifyStaff } from '../license/access';
+import { dashboardStats, licenseHealth, ordersToProcess } from '../license/dashboard';
+import { applyCode, formatCountdown, hashManagerPin, isAdminCode, isCreatorCode, isDemoCode, licenseStatus } from '../license/license';
 import {
-  applyCode,
-  formatCountdown,
-  isDemoCode,
-  extendOneMonth,
-  firstOfMonth,
-  hashManagerPin,
-  isAdminCode,
-  licenseStatus,
-  makeActivationCode,
-  revoke,
-} from '../license/license';
+  applyRedeem,
+  FALLBACK_BILLING,
+  keyWhatsAppLink,
+  normalizeKey,
+  type PaymentOrder,
+  proofWhatsAppLink,
+  type ServerLicense,
+  syncFromServer,
+} from '../license/server';
 import { formatElapsed, formatPrice, parsePrice } from '../utils/format';
 import { sha256 } from '../utils/sha256';
 import {
@@ -40,8 +40,8 @@ import {
 } from './actions';
 import { createInitialState, migrate, normalize } from './defaults';
 import { reduce, reduceAll, type Op } from './ops';
-import { cleanText, formatRow, toEscPos } from '../print/escpos';
-import { receiptDoc } from '../print/doc';
+import { closureDoc, receiptDoc } from '../ticket/doc';
+import { cleanText, formatRow } from '../ticket/layout';
 import {
   buildClosure,
   dayKey,
@@ -50,11 +50,18 @@ import {
   openOrderForTable,
   orderDiscount,
   orderSubtotal,
+  orderNet,
   orderTotal,
+  orderVat,
   salesStats,
   tableState,
 } from './selectors';
 import type { AppState, License } from './types';
+
+/** Texte brut d'un ticket, pour les vérifications. */
+function docText(doc: { lines: ({ k: string; text?: string; left?: string; right?: string })[] }): string {
+  return doc.lines.map((l) => (l.text !== undefined ? l.text : l.left !== undefined ? `${l.left} ${l.right}` : '')).join('\n');
+}
 
 function setup() {
   const base = createInitialState();
@@ -66,6 +73,15 @@ function setup() {
 }
 
 const order = (s: AppState) => s.orders.find((o) => o.id === 'o1')!;
+const DAY = 86_400_000;
+
+/** Commande de paiement type, pour les tests du paiement par virement. */
+const ORDER: PaymentOrder = {
+  id: 'ord-1', number: 7, reference: 'CR-0007-K7PQ', license_id: 'K7M2-9QXA', plan: 'mensuel', amount: 4599,
+  customer_name: 'Marie Dupont', restaurant_name: 'Chez Marie', email: 'marie@example.com', phone: '+32 470 12 34 56',
+  status: 'en_attente', admin_note: '', created_at: '2026-11-20T10:00:00.000Z', proof_sent_at: null, confirmed_at: null,
+  closed_at: null, key_hint: null, key_created_at: null, key_redeemed_at: null,
+};
 
 describe('prise de commande', () => {
   it('ouvre une commande au nom du serveur et occupe la table', () => {
@@ -245,40 +261,94 @@ describe('abonnement', () => {
     assert.equal(licenseStatus(lic(), at(2026, 11, 10)).active, false);
   });
 
-  it('mensuel : actif jusqu’au 1er, rappel 5 jours avant, blocage à l’échéance', () => {
-    const l = extendOneMonth(lic(), at(2026, 11, 10)); // paie novembre
-    assert.equal(l.paidUntil, firstOfMonth(2026, 11)); // 1er décembre 2026
-    assert.equal(licenseStatus(l, at(2026, 11, 25)).inReminderWindow, false);
-    const reminder = licenseStatus(l, at(2026, 11, 26, 0));
+  it('mensuel : 30 jours dès l’activation, rappel 5 jours avant, blocage à la fin', () => {
+    const t = at(2026, 11, 10, 14);
+    const l = applyRedeem(lic(), { plan: 'mensuel', valid_until: t + 30 * DAY }, t);
+    assert.equal(l.paidUntil, t + 30 * DAY);
+    assert.equal(licenseStatus(l, t + 24 * DAY).inReminderWindow, false);
+    const reminder = licenseStatus(l, t + 25 * DAY);
     assert.equal(reminder.inReminderWindow, true);
     assert.equal(reminder.daysLeft, 5);
-    assert.equal(licenseStatus(l, at(2026, 11, 30, 23)).active, true);
-    assert.equal(licenseStatus(l, at(2026, 12, 1, 0)).active, false); // bloqué à minuit
+    assert.equal(licenseStatus(l, t + 30 * DAY - 1000).active, true);
+    assert.equal(licenseStatus(l, t + 30 * DAY).active, false); // bloqué à la seconde près
   });
 
-  it('prolonger un mois actif repousse l’échéance', () => {
-    const l = extendOneMonth(extendOneMonth(lic(), at(2026, 11, 10)), at(2026, 11, 28));
-    assert.equal(l.paidUntil, firstOfMonth(2027, 0));
+  it('à vie : jamais bloquée', () => {
+    const l = applyRedeem(lic(), { plan: 'vie', valid_until: null });
+    assert.equal(licenseStatus(l, at(2040, 1, 1)).active, true);
   });
 
-  it('à vie : jamais bloquée ; révoquer bloque', () => {
-    const l = applyCode(lic(), '197905');
-    assert.equal(l.kind, 'admin');
-    assert.equal(licenseStatus(l.kind === 'admin' ? l.license : lic(), at(2040, 1, 1)).active, true);
-    assert.equal(licenseStatus(revoke(lic()), at(2026, 11, 10)).active, false);
+  it('les anciens codes n’activent plus rien, seules les clés du serveur sont reconnues', () => {
+    assert.equal(applyCode(lic(), 'M202612-3FA9C1').kind, 'invalid');
+    assert.equal(applyCode(lic(), 'VIE-81B0D2').kind, 'invalid');
+    const k = applyCode(lic(), ' abcd efgh jkmn pq23 ');
+    assert.deepEqual(k, { kind: 'key', key: 'ABCD-EFGH-JKMN-PQ23' });
+    assert.equal(normalizeKey('ABCD-EFGH-JKMN-PQ2'), null);
+    assert.equal(normalizeKey('ABCD-EFGH-JKMN-PQ20'), null); // « 0 » n'existe pas dans les clés
   });
 
-  it('codes d’activation liés à la licence', () => {
-    const code = makeActivationCode('K7M2-9QXA', { plan: 'mensuel', month: '202612' });
-    assert.match(code, /^M202612-[A-Z0-9]{6}$/);
-    const ok = applyCode(lic(), code.toLowerCase(), at(2026, 12, 3));
-    assert.equal(ok.kind, 'activation');
-    if (ok.kind === 'activation') assert.equal(ok.license.paidUntil, firstOfMonth(2027, 0));
-    const other = applyCode({ ...lic(), id: 'AAAA-BBBB' }, code);
-    assert.equal(other.kind, 'invalid');
-    const life = applyCode(lic(), makeActivationCode('K7M2-9QXA', { plan: 'vie' }));
-    assert.equal(life.kind === 'activation' && life.license.plan, 'vie');
-    assert.equal(applyCode(lic(), 'M202613-ABCDEF').kind, 'invalid');
+  it('le serveur fait foi : révocation, renouvellement, licence inconnue', () => {
+    const active = applyRedeem(lic(), { plan: 'mensuel', valid_until: at(2026, 12, 10) });
+    assert.equal(syncFromServer(active, { found: false }), null);
+    assert.equal(syncFromServer(active, { found: true, plan: 'mensuel', valid_until: at(2026, 12, 10) }), null);
+    assert.equal(syncFromServer(active, { found: true, plan: 'mensuel', valid_until: at(2027, 1, 9) })?.paidUntil, at(2027, 1, 9));
+    const revoked = syncFromServer(active, { found: true, plan: 'aucun', valid_until: null });
+    assert.equal(revoked && licenseStatus(revoked, at(2026, 11, 20)).active, false);
+    assert.equal(syncFromServer(active, { found: true, plan: 'vie', valid_until: null })?.plan, 'vie');
+  });
+
+  it('message WhatsApp de preuve : commande, nom, e-mail, formule, capture', () => {
+    const link = proofWhatsAppLink(FALLBACK_BILLING, ORDER, (c) => formatPrice(c));
+    assert.ok(link.startsWith(`https://wa.me/${FALLBACK_BILLING.whatsapp}?text=`));
+    const text = decodeURIComponent(link.split('?text=')[1]);
+    for (const part of ['Commande n° 7', 'CR-0007-K7PQ', 'Marie Dupont', 'marie@example.com', 'Abonnement mensuel', '45,99', 'capture']) {
+      assert.ok(text.includes(part), part);
+    }
+    const keyText = decodeURIComponent(keyWhatsAppLink(ORDER, 'ABCD-EFGH-JKMN-PQ23').split('?text=')[1]);
+    assert.ok(keyText.includes('ABCD-EFGH-JKMN-PQ23'));
+    assert.ok(keyWhatsAppLink(ORDER, 'X').startsWith('https://wa.me/32470123456?'));
+  });
+
+  it('tableau de bord : à traiter, santé des licences, chiffres', () => {
+    const now = at(2026, 11, 20);
+    const iso = (t: number) => new Date(t).toISOString();
+    const o = (id: string, status: PaymentOrder['status'], extra: Partial<PaymentOrder> = {}): PaymentOrder => ({
+      ...ORDER,
+      id,
+      status,
+      created_at: iso(now - 3600000),
+      ...extra,
+    });
+    const orders = [
+      o('attente', 'en_attente'),
+      o('preuve', 'preuve_envoyee'),
+      o('generer', 'confirmee', { confirmed_at: iso(now) }),
+      o('fini', 'confirmee', { confirmed_at: iso(at(2026, 10, 3)), key_created_at: iso(now), key_redeemed_at: iso(now) }),
+      o('refus', 'refusee'),
+    ];
+    assert.deepEqual(ordersToProcess(orders).map((x) => x.id), ['preuve', 'generer', 'attente']);
+    const L = (id: string, plan: ServerLicense['plan'], until: number | null, revoked = false): ServerLicense => ({
+      license_id: id, plan, valid_until: until, revoked, customer_name: id, restaurant_name: '', email: '', phone: '',
+      activations: 1, created_at: iso(now), updated_at: iso(now),
+    });
+    const licenses = [L('a', 'vie', null), L('b', 'mensuel', now + 20 * DAY), L('c', 'mensuel', now + 3 * DAY), L('d', 'mensuel', now - DAY), L('e', 'mensuel', now + 9 * DAY, true)];
+    assert.deepEqual(licenses.map((l) => licenseHealth(l, now)), ['vie', 'active', 'bientot', 'expiree', 'revoquee']);
+    const st = dashboardStats({ orders, licenses, billing: FALLBACK_BILLING, now });
+    assert.equal(st.toProcess, 3);
+    assert.equal(st.proofs, 1);
+    assert.equal(st.activeLicenses, 3);
+    assert.equal(st.endingSoon, 1);
+    assert.equal(st.expired, 1);
+    assert.equal(st.revenueThisMonth, 4599);
+    assert.equal(st.revenueTotal, 9198);
+  });
+});
+
+describe('code créateur', () => {
+  it('protège la suppression des données : refuse les mauvais codes', () => {
+    for (const c of ['0000', '1234', '9999', '']) assert.equal(isCreatorCode(c), false);
+    // Le vrai code n'est jamais écrit dans le dépôt : vérifié seulement s'il est fourni.
+    if (process.env.CAISSE_CREATOR_CODE) assert.equal(isCreatorCode(process.env.CAISSE_CREATOR_CODE), true);
   });
 });
 
@@ -301,15 +371,14 @@ describe('encaissement : remise, pourboire, monnaie', () => {
     assert.equal(st.byPayment.especes, 3170); // encaissé = total + pourboire
   });
 
-  it('imprime un ticket de caisse complet', () => {
+  it('affiche un ticket de caisse complet (ancienne commande, TVA incluse)', () => {
     const { s, burger } = setup();
     const s2 = reduceAll(s, [
       { t: 'updateSettings', patch: { vatNumber: 'BE 0123.456.789' } },
       addItem('o1', burger, 'cuisine'),
       payOrder('o1', 'especes', { tip: 150, cashReceived: 2000 }),
     ]);
-    const doc = receiptDoc(s2, order(s2));
-    const text = doc.lines.map((l) => ('text' in l ? l.text : 'left' in l ? `${l.left} ${l.right}` : '')).join('\n');
+    const text = docText(receiptDoc(s2, order(s2)));
     assert.match(text, /TICKET DE CAISSE/);
     assert.match(text, /TVA BE 0123\.456\.789/);
     assert.match(text, /1 x Burger maison/);
@@ -317,13 +386,61 @@ describe('encaissement : remise, pourboire, monnaie', () => {
     assert.match(text, /Rendu 2,00/); // 20,00 reçus − 16,50 − 1,50 de pourboire
   });
 
-  it('met en forme et encode pour une imprimante thermique', () => {
+  it('met en forme les colonnes du ticket', () => {
     assert.deepEqual(formatRow('Total', '12,50 €', 20), ['Total        12,50 €']);
     assert.equal(formatRow('Un très long nom de plat maison', '9,00 €', 20).length, 2);
-    const bytes = toEscPos({ title: 't', lines: [{ k: 'text', text: 'é €' }] }, 58);
-    assert.ok(bytes.includes(0x82)); // é en PC858
-    assert.ok(bytes.includes(0xd5)); // € en PC858
-    assert.equal(cleanText('Crème brûlée €', true), 'Creme brulee EUR');
+    assert.equal(cleanText('L’œuf – 2×'), "L'oeuf - 2x");
+  });
+});
+
+describe('TVA choisie à l’encaissement', () => {
+  it('ajoute la TVA au montant après remise, pourboire en plus', () => {
+    const { s, burger } = setup();
+    const s2 = reduceAll(s, [
+      addItem('o1', burger, 'cuisine'),
+      addItem('o1', burger, 'cuisine'),
+      payOrder('o1', 'carte', { discountPct: 10, tip: 100, vatRate: 21 }),
+    ]);
+    const o = order(s2);
+    assert.equal(orderNet(o), 2970); // 33,00 − 10 %
+    assert.equal(orderVat(o), 624); // 21 % de 29,70 = 6,237 → 6,24
+    assert.equal(orderTotal(o), 3594);
+    const st = salesStats(s2.orders);
+    assert.equal(st.revenue, 3594);
+    assert.equal(st.vat, 624);
+    assert.deepEqual(st.vatByRate, { '21': 624 });
+    assert.equal(st.byPayment.carte, 3694);
+  });
+
+  it('accepte 0, 6, 12 et 21 % et les détaille sur le ticket et la clôture', () => {
+    const { s, burger } = setup();
+    const day = new Date(2026, 10, 20, 12).getTime();
+    let st2 = s;
+    const rates = [0, 6, 12, 21];
+    rates.forEach((r, i) => {
+      const id = `v${r}`;
+      st2 = reduceAll(st2, [
+        { t: 'createOrder', id, tableId: s.tables[i + 1].id, label: `T${i}`, server: 'Léa', at: day },
+        { t: 'addItem', orderId: id, lineId: `${id}-l`, item: burger, station: 'cuisine' },
+        { t: 'payOrder', orderId: id, payment: 'carte', at: day, vatRate: r },
+      ]);
+    });
+    const totals = rates.map((r) => orderTotal(st2.orders.find((o) => o.id === `v${r}`)!));
+    assert.deepEqual(totals, [1650, 1749, 1848, 1997]);
+    const ticket = docText(receiptDoc(st2, st2.orders.find((o) => o.id === 'v12')!));
+    assert.match(ticket, /Total HT 16,50/);
+    assert.match(ticket, /TVA 12 % 1,98/);
+    assert.match(ticket, /TOTAL TTC 18,48/);
+    const z = buildClosure(st2, dayKey(day), day + 86400000);
+    assert.deepEqual(z.vatByRate, { '0': 0, '6': 99, '12': 198, '21': 347 });
+    assert.match(docText(closureDoc(st2, z)), /TVA 21 % 3,47/);
+  });
+
+  it('les commandes en cours n’ont pas encore de TVA', () => {
+    const { s, burger } = setup();
+    const o = order(reduceAll(s, [addItem('o1', burger, 'cuisine')]));
+    assert.equal(orderVat(o), 0);
+    assert.equal(orderTotal(o), 1650);
   });
 });
 
@@ -372,9 +489,9 @@ describe('mode démo', () => {
   it('un paiement pendant la démo prend le relais', () => {
     const r = applyCode(lic(), '6666', t0);
     const demo = r.kind === 'demo' ? r.license : lic();
-    const paid = applyCode(demo, makeActivationCode('K7M2-9QXA', { plan: 'vie' }), t0 + H);
-    assert.equal(paid.kind === 'activation' && licenseStatus(paid.license, t0 + 48 * H).active, true);
-    assert.equal(paid.kind === 'activation' && licenseStatus(paid.license, t0 + 2 * H).demo, false);
+    const paid = applyRedeem(demo, { plan: 'vie', valid_until: null }, t0 + H);
+    assert.equal(licenseStatus(paid, t0 + 48 * H).active, true);
+    assert.equal(licenseStatus(paid, t0 + 2 * H).demo, false);
   });
 
   it('affiche le minuteur', () => {

@@ -28,7 +28,7 @@ export default function SubscriptionScreen() {
       : status.demo && status.demoEndsAt
         ? `Temps restant : ${formatCountdown(status.demoEndsAt - now)} · ensuite, paiement requis.`
         : status.active && status.dueDate
-        ? `Prochaine échéance : ${formatLongDate(status.dueDate)}${status.daysLeft !== null ? ` (dans ${status.daysLeft} j)` : ''}`
+        ? `Valable jusqu’au ${formatLongDate(status.dueDate)}${status.daysLeft !== null ? ` (encore ${status.daysLeft} j)` : ''}`
         : 'L’application est bloquée tant qu’aucune formule n’est active.';
 
   return (
@@ -43,7 +43,7 @@ export default function SubscriptionScreen() {
 
       {status.inReminderWindow && status.dueDate ? (
         <Notice tone="warning" title="Paiement à effectuer">
-          {`Réglez votre abonnement avant le ${formatLongDate(status.dueDate)} : sans paiement, l’application sera bloquée automatiquement à cette date.`}
+          {`Votre abonnement se termine le ${formatLongDate(status.dueDate)}. Renouvelez-le dès maintenant : les 30 jours s’ajoutent à la suite. Sans paiement, l’application sera bloquée automatiquement à cette date.`}
         </Notice>
       ) : null}
 
@@ -54,8 +54,9 @@ export default function SubscriptionScreen() {
             <LiveClock />
             <PaymentCalendar status={status} now={now} />
             <Text style={styles.calendarNote}>
-              Le mois est dû le 1er. Un rappel s’affiche 5 jours avant ; le blocage est automatique dès l’échéance si le
-              paiement n’a pas été enregistré.
+              Chaque paiement donne 30 jours à partir de l’activation de la clé. Les 5 jours qui précèdent la fin sont en
+              orange (rappel), le jour de fin en rouge : sans nouvelle clé, l’application se bloque automatiquement et la
+              page de paiement revient.
             </Text>
           </Card>
         </>

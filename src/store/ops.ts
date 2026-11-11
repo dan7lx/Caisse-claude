@@ -39,6 +39,7 @@ export type Op =
       tip?: number;
       discountPct?: number;
       cashReceived?: number | null;
+      vatRate?: number | null;
     }
   | { t: 'moveOrderTable'; orderId: string; tableId: string; label: string }
   | { t: 'closeDay'; closure: DailyClosure; resetCounter: boolean }
@@ -178,6 +179,7 @@ export function reduce(s: AppState, op: Op): AppState {
               tip: Math.max(0, Math.round(op.tip ?? 0)),
               discountPct: Math.min(100, Math.max(0, op.discountPct ?? 0)),
               cashReceived: op.cashReceived ?? null,
+              vatRate: typeof op.vatRate === 'number' && Number.isFinite(op.vatRate) ? Math.min(100, Math.max(0, op.vatRate)) : null,
             },
       );
     case 'moveOrderTable': {

@@ -60,7 +60,7 @@ export function StatusStrip() {
         ) : (
           <>
             <Text style={styles.title} numberOfLines={1}>
-              Paiement dû le {formatLongDate(status.dueDate ?? now)}
+              Fin de l’abonnement le {formatLongDate(status.dueDate ?? now)}
             </Text>
             <Text style={styles.text} numberOfLines={2}>
               {status.daysLeft !== null ? `Dans ${status.daysLeft} jour${status.daysLeft > 1 ? 's' : ''}. ` : ''}Sans paiement,

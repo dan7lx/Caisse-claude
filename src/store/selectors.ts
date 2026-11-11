@@ -11,10 +11,19 @@ export const orderSubtotal = (order: Order) => order.lines.reduce((sum, l) => su
 /** Montant de la remise (arrondi au centime). */
 export const orderDiscount = (order: Order) => Math.round((orderSubtotal(order) * (order.discountPct ?? 0)) / 100);
 
-/** Total TTC à payer, remise déduite (hors pourboire). */
-export const orderTotal = (order: Order) => orderSubtotal(order) - orderDiscount(order);
+/** Montant des articles, remise déduite, avant TVA (hors pourboire). */
+export const orderNet = (order: Order) => orderSubtotal(order) - orderDiscount(order);
 
-/** TVA incluse dans un montant TTC. */
+/** TVA ajoutée à un montant hors TVA (arrondie au centime). */
+export const vatOn = (net: number, rate: number) => Math.round((net * rate) / 100);
+
+/** TVA de la commande (choisie à l'encaissement). 0 pour les anciennes commandes, dont la TVA était incluse. */
+export const orderVat = (order: Order) => (order.vatRate === null || order.vatRate === undefined ? 0 : vatOn(orderNet(order), order.vatRate));
+
+/** Total TTC à payer, remise déduite et TVA ajoutée (hors pourboire). */
+export const orderTotal = (order: Order) => orderNet(order) + orderVat(order);
+
+/** TVA incluse dans un montant TTC (anciennes commandes). */
 export const includedVat = (amount: number, rate: number) => Math.round((amount * rate) / (100 + rate));
 
 /** Jour local au format AAAA-MM-JJ. */
@@ -108,6 +117,13 @@ export function salesStats(orders: Order[]) {
   const tips = paid.reduce((sum, o) => sum + (o.tip ?? 0), 0);
   const discounts = paid.reduce((sum, o) => sum + orderDiscount(o), 0);
   const guests = paid.reduce((sum, o) => sum + o.guests, 0);
+  const vatByRate: Record<string, number> = {};
+  for (const o of paid) {
+    if (o.vatRate === null || o.vatRate === undefined) continue;
+    const key = String(o.vatRate);
+    vatByRate[key] = (vatByRate[key] ?? 0) + orderVat(o);
+  }
+  const vat = Object.values(vatByRate).reduce((a, b) => a + b, 0);
   const byPayment: Record<PaymentMethod, number> = { especes: 0, carte: 0, autre: 0 };
   const itemCounts = new Map<string, { name: string; qty: number; total: number }>();
   for (const o of paid) {
@@ -124,6 +140,8 @@ export function salesStats(orders: Order[]) {
     count: paid.length,
     cancelled: orders.filter((o) => o.status === 'annulee').length,
     revenue,
+    vat,
+    vatByRate,
     tips,
     discounts,
     guests,
@@ -144,6 +162,7 @@ export function buildClosure(state: AppState, date: string, now = Date.now()): D
     cancelled: st.cancelled,
     guests: st.guests,
     revenue: st.revenue,
+    vatByRate: st.vatByRate,
     tips: st.tips,
     discounts: st.discounts,
     byPayment: st.byPayment,
