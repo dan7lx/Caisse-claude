@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -14,12 +15,15 @@ import {
   TextInput,
   TextInputProps,
   TextStyle,
+  useWindowDimensions,
   View,
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, fonts, shadow } from '../theme';
+import { haptic } from '../utils/haptics';
+import { Emoji3D } from './Emoji3D';
 
 export type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -52,8 +56,12 @@ export function Button({ title, onPress, variant = 'primary', icon, disabled, sm
       accessibilityRole="button"
       accessibilityLabel={title}
       accessibilityState={{ disabled: !!disabled }}
-      onPress={onPress}
+      onPress={() => {
+        haptic.tap();
+        onPress();
+      }}
       disabled={disabled}
+      android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
       style={({ pressed }) => [
         styles.btn,
         small && styles.btnSmall,
@@ -267,16 +275,18 @@ export function Stepper({ value, onChange, min = 0, label }: StepperProps) {
 
 interface EmptyProps {
   icon: IconName;
+  /** Emoji 3D affiché à la place de l'icône. */
+  emoji?: string;
   title: string;
   subtitle?: string;
   children?: React.ReactNode;
 }
 
-export function Empty({ icon, title, subtitle, children }: EmptyProps) {
+export function Empty({ icon, emoji, title, subtitle, children }: EmptyProps) {
   return (
     <View style={styles.empty}>
       <View style={styles.emptyIcon}>
-        <Ionicons name={icon} size={34} color={colors.goldDeep} />
+        {emoji ? <Emoji3D emoji={emoji} size={46} /> : <Ionicons name={icon} size={34} color={colors.goldDeep} />}
       </View>
       <Text style={styles.emptyTitle}>{title}</Text>
       {subtitle ? <Text style={styles.emptySubtitle}>{subtitle}</Text> : null}
@@ -348,6 +358,8 @@ export function FormModal({ visible, title, onClose, onSave, saveLabel = 'Enregi
 interface ListRowProps {
   title: string;
   subtitle?: string;
+  /** Emoji 3D à gauche (prioritaire sur l'icône). */
+  emoji?: string;
   icon?: IconName;
   iconColor?: string;
   right?: React.ReactNode;
@@ -355,15 +367,20 @@ interface ListRowProps {
   chevron?: boolean;
 }
 
-export function ListRow({ title, subtitle, icon, iconColor = colors.ink, right, onPress, chevron }: ListRowProps) {
+export function ListRow({ title, subtitle, emoji, icon, iconColor = colors.ink, right, onPress, chevron }: ListRowProps) {
   return (
     <Pressable
       accessibilityRole={onPress ? 'button' : undefined}
       onPress={onPress}
       disabled={!onPress}
+      android_ripple={onPress ? { color: colors.goldSoft } : undefined}
       style={({ pressed }) => [styles.row, pressed && onPress ? styles.rowPressed : null]}
     >
-      {icon ? (
+      {emoji ? (
+        <View style={styles.rowEmoji}>
+          <Emoji3D emoji={emoji} size={30} />
+        </View>
+      ) : icon ? (
         <View style={[styles.rowIcon, { backgroundColor: iconColor + '1F' }]}>
           <Ionicons name={icon} size={20} color={iconColor} />
         </View>
@@ -389,50 +406,103 @@ interface PinPadProps {
   onSubmit: (code: string) => string | null;
   minLength?: number;
   maxLength?: number;
+  /** Longueur exacte connue : validation automatique au dernier chiffre. */
+  length?: number | null;
+  /** Essai silencieux à une longueur donnée : ouvre si le code est bon, sinon la saisie continue. */
+  autoTry?: { length: number; attempt: (code: string) => boolean } | null;
+  /** Saisie bloquée (trop d'essais) : message affiché à la place des erreurs. */
+  lockedMessage?: string | null;
   submitLabel?: string;
   dark?: boolean;
+  emoji?: string;
 }
 
-/** Pavé numérique pour saisir un code (gérant, admin). */
-export function PinPad({ title, subtitle, onSubmit, minLength = 4, maxLength = 8, submitLabel = 'Valider', dark = true }: PinPadProps) {
+/** Pavé numérique pour saisir un code (gérant, admin, démo). */
+export function PinPad({
+  title,
+  subtitle,
+  onSubmit,
+  minLength = 4,
+  maxLength = 8,
+  length,
+  autoTry,
+  lockedMessage,
+  submitLabel = 'Valider',
+  dark = true,
+  emoji,
+}: PinPadProps) {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const press = (k: string) => {
-    setError(null);
-    if (k === 'del') setCode((c) => c.slice(0, -1));
-    else setCode((c) => (c.length < maxLength ? c + k : c));
+  const shake = useRef(new Animated.Value(0)).current;
+  const { width } = useWindowDimensions();
+  const keySize = Math.max(58, Math.min(78, (width - 96) / 3.4));
+  const target = length ?? null;
+  const locked = !!lockedMessage;
+
+  const fail = (message: string) => {
+    haptic.error();
+    setError(message);
+    setCode('');
+    Animated.sequence(
+      [12, -12, 9, -9, 5, 0].map((x) => Animated.timing(shake, { toValue: x, duration: 45, useNativeDriver: true })),
+    ).start();
   };
-  const submit = () => {
-    if (code.length < minLength) {
-      setError(`Le code contient au moins ${minLength} chiffres.`);
+
+  const submit = (value: string) => {
+    if (locked) return;
+    if (value.length < minLength) {
+      fail(`Le code contient au moins ${minLength} chiffres.`);
       return;
     }
-    const err = onSubmit(code);
-    if (err) {
-      setError(err);
-      setCode('');
-    }
+    const err = onSubmit(value);
+    if (err) fail(err);
+    else haptic.success();
   };
+
+  // Validation automatique dès que la longueur attendue est atteinte.
+  useEffect(() => {
+    if (target && code.length === target) submit(code);
+    else if (!locked && autoTry && code.length === autoTry.length && autoTry.attempt(code)) haptic.success();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code, target]);
+
+  const press = (k: string) => {
+    if (locked) return;
+    haptic.tap();
+    setError(null);
+    if (k === 'del') setCode((c) => c.slice(0, -1));
+    else setCode((c) => (c.length < (target ?? maxLength) ? c + k : c));
+  };
+
   const fg = dark ? colors.onDark : colors.text;
+  const dots = target ?? Math.max(minLength, code.length);
   return (
     <View style={styles.pin}>
+      {emoji ? <Emoji3D emoji={emoji} size={64} /> : null}
       <Text style={[styles.pinTitle, { color: fg }]}>{title}</Text>
       {subtitle ? <Text style={[styles.pinSubtitle, { color: dark ? colors.onDarkMuted : colors.muted }]}>{subtitle}</Text> : null}
-      <View style={styles.pinDots} accessibilityLabel={`${code.length} chiffres saisis`}>
-        {Array.from({ length: Math.max(minLength, code.length) }, (_, i) => (
+      <Animated.View
+        style={[styles.pinDots, { transform: [{ translateX: shake }] }]}
+        accessibilityLabel={`${code.length} chiffres saisis`}
+      >
+        {Array.from({ length: dots }, (_, i) => (
           <View key={i} style={[styles.pinDot, { borderColor: colors.gold }, i < code.length && { backgroundColor: colors.gold }]} />
         ))}
-      </View>
-      <Text style={styles.pinError}>{error ?? ' '}</Text>
-      <View style={styles.pinGrid}>
+      </Animated.View>
+      <Text style={styles.pinError} accessibilityLiveRegion="polite">
+        {lockedMessage ?? error ?? ' '}
+      </Text>
+      <View style={[styles.pinGrid, { width: keySize * 3 + 32, opacity: locked ? 0.4 : 1 }]}>
         {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'del', '0', 'ok'].map((k) => (
           <Pressable
             key={k}
             accessibilityRole="button"
             accessibilityLabel={k === 'del' ? 'Effacer' : k === 'ok' ? submitLabel : k}
-            onPress={() => (k === 'ok' ? submit() : press(k))}
+            disabled={locked}
+            onPress={() => (k === 'ok' ? submit(code) : press(k))}
             style={({ pressed }) => [
               styles.pinKey,
+              { width: keySize, height: keySize, borderRadius: keySize / 2 },
               dark ? styles.pinKeyDark : styles.pinKeyLight,
               k === 'ok' && styles.pinKeyOk,
               pressed && styles.pinKeyPressed,
@@ -605,6 +675,7 @@ export const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   rowPressed: { backgroundColor: colors.goldSoft },
+  rowEmoji: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.goldSoft },
   rowIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   rowTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   rowSubtitle: { fontSize: 13, color: colors.muted, marginTop: 2 },
@@ -614,8 +685,8 @@ export const styles = StyleSheet.create({
   pinDots: { flexDirection: 'row', gap: 14, marginTop: 10, minHeight: 18 },
   pinDot: { width: 16, height: 16, borderRadius: 8, borderWidth: 2 },
   pinError: { color: '#E8857C', fontWeight: '700', minHeight: 20, textAlign: 'center' },
-  pinGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 14, width: 300 },
-  pinKey: { width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  pinGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 14 },
+  pinKey: { alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   pinKeyDark: { backgroundColor: colors.ink2, borderColor: colors.ink3 },
   pinKeyLight: { backgroundColor: colors.card, borderColor: colors.border },
   pinKeyOk: { backgroundColor: colors.gold, borderColor: colors.gold },

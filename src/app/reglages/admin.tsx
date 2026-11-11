@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
 import { ManagerGate } from '../../components/ManagerGate';
+import { formatIban } from '../../components/PaymentSheet';
 import { formatLongDate } from '../../components/PaymentCalendar';
 import { Button, Card, Chip, confirm, Field, Notice, notify, SectionTitle, SwitchRow } from '../../components/ui';
-import { extendOneMonth, lifetime, licenseStatus, makeActivationCode, monthKey, revoke } from '../../license/license';
-import { setLicense, setManagerPin, setPaymentLinks, setSecurity } from '../../store/actions';
+import { extendOneMonth, formatCountdown, lifetime, licenseStatus, makeActivationCode, monthKey, revoke } from '../../license/license';
+import { setBilling, setLicense, setManagerPin, setPaymentLinks, setSecurity } from '../../store/actions';
 import { useStore } from '../../store/StoreProvider';
 import { colors, fonts } from '../../theme';
 
@@ -36,6 +37,8 @@ function AdminScreen() {
   const [generated, setGenerated] = useState<string | null>(null);
   const [linkMonthly, setLinkMonthly] = useState(state.paymentLinks.mensuel);
   const [linkLifetime, setLinkLifetime] = useState(state.paymentLinks.vie);
+  const [iban, setIban] = useState(formatIban(state.billing.iban));
+  const [holder, setHolder] = useState(state.billing.holder);
 
   const generate = (plan: 'mensuel' | 'vie') => {
     const id = clientId.trim().toUpperCase();
@@ -51,7 +54,9 @@ function AdminScreen() {
       ? 'Licence à vie'
       : status.active && status.dueDate
         ? `Mensuel, payé jusqu’au ${formatLongDate(status.dueDate)}`
-        : 'Aucune licence active (application bloquée)';
+        : status.demo && status.demoEndsAt
+          ? `Mode démo, ${formatCountdown(status.demoEndsAt - Date.now())} restantes`
+          : 'Aucune licence active (application bloquée)';
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -76,6 +81,53 @@ function AdminScreen() {
           onPress={() =>
             confirm('Révoquer la licence ?', 'L’application sera bloquée immédiatement sur tous les appareils du restaurant.', () => dispatch(setLicense(revoke(state.license))), 'Révoquer')
           }
+        />
+      </Card>
+
+      <SectionTitle>Mode démo (24 h)</SectionTitle>
+      <Card style={styles.card}>
+        <Text style={styles.text}>
+          {status.demo
+            ? 'Démo en cours sur cette licence.'
+            : status.demoUsed
+              ? 'La démo a déjà été utilisée sur cette licence.'
+              : 'La démo n’a pas encore été utilisée.'}
+        </Text>
+        <View style={styles.buttons}>
+          <Button
+            title="Réinitialiser la démo"
+            icon="refresh"
+            variant="secondary"
+            disabled={!status.demoUsed}
+            onPress={() => dispatch(setLicense({ ...state.license, demoStartedAt: null }))}
+            style={styles.flex}
+          />
+          <Button
+            title="Arrêter la démo"
+            icon="stop-circle-outline"
+            variant="secondary"
+            disabled={!status.demo}
+            onPress={() => dispatch(setLicense({ ...state.license, demoStartedAt: 0 }))}
+            style={styles.flex}
+          />
+        </View>
+      </Card>
+
+      <SectionTitle>Coordonnées bancaires (paiement)</SectionTitle>
+      <Card style={styles.card}>
+        <Text style={styles.text}>Affichées à vos clients quand ils appuient sur « Payer ».</Text>
+        <Field label="Bénéficiaire" value={holder} onChangeText={setHolder} />
+        <Field label="IBAN" value={iban} onChangeText={setIban} autoCapitalize="characters" />
+        <Button
+          title="Enregistrer"
+          icon="checkmark"
+          onPress={() => {
+            const clean = iban.replace(/\s/g, '').toUpperCase();
+            if (!/^[A-Z]{2}\d{2}[A-Z0-9]{8,30}$/.test(clean)) return notify('IBAN invalide', 'Vérifiez le numéro de compte.');
+            if (!holder.trim()) return notify('Nom manquant', 'Indiquez le nom du bénéficiaire.');
+            dispatch(setBilling({ iban: clean, holder: holder.trim() }));
+            notify('Coordonnées bancaires', 'Enregistrées.');
+          }}
         />
       </Card>
 

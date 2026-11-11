@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -10,12 +10,14 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Emoji3D } from '../../components/Emoji3D';
 import { HeaderTitle } from '../../components/HeaderParts';
+import { MenuItemCard } from '../../components/MenuItemCard';
+import { useToast } from '../../components/Toast';
 import { TicketContent } from '../../components/TicketContent';
 import { Button, Chip, confirm, Empty, Field, FormModal, IconButton } from '../../components/ui';
 import { addItem, cancelOrder, changeQty, payOrder, removeIfEmpty, sendOrder, setLineNote } from '../../store/actions';
@@ -24,6 +26,8 @@ import { useStore } from '../../store/StoreProvider';
 import type { MenuItem, Order, OrderLine, PaymentMethod } from '../../store/types';
 import { colors, fonts, paymentLabel, shadow } from '../../theme';
 import { formatPrice } from '../../utils/format';
+import { haptic } from '../../utils/haptics';
+import { columnsFor, useLayout } from '../../utils/layout';
 
 const PAYMENT_ICONS: Record<PaymentMethod, React.ComponentProps<typeof Ionicons>['name']> = {
   especes: 'cash-outline',
@@ -39,8 +43,9 @@ export default function OrderScreen() {
   const { state, dispatch } = useStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, small } = useLayout();
   const wide = width >= 900;
+  const toast = useToast();
 
   const order = state.orders.find((o) => o.id === id);
   const currency = state.settings.currency;
@@ -52,6 +57,7 @@ export default function OrderScreen() {
   const [payOpen, setPayOpen] = useState(false);
   const [noteLine, setNoteLine] = useState<OrderLine | null>(null);
   const [noteText, setNoteText] = useState('');
+  const [choiceItem, setChoiceItem] = useState<MenuItem | null>(null);
 
   // Une table ouverte puis quittée sans rien commander redevient libre.
   const orderRef = useRef<Order | undefined>(order);
@@ -75,6 +81,36 @@ export default function OrderScreen() {
     return state.items.filter((i) => i.categoryId === categoryId);
   }, [state.items, categoryId, search]);
 
+  const categoryById = useMemo(() => new Map(state.categories.map((c) => [c.id, c])), [state.categories]);
+
+  // Callbacks stables : les cartes de plats ne sont pas redessinées à chaque ajout.
+  const onAdd = useCallback(
+    (item: MenuItem) => {
+      const o = orderRef.current;
+      if (!o) return;
+      if (item.choices.length) {
+        haptic.tap();
+        setChoiceItem(item);
+        return;
+      }
+      haptic.impact();
+      dispatch(addItem(o.id, item, stationOf(item)));
+    },
+    [dispatch, stationOf],
+  );
+  const onRemove = useCallback(
+    (item: MenuItem) => {
+      const o = orderRef.current;
+      if (!o) return;
+      const line = [...o.lines].reverse().find((l) => l.status === 'brouillon' && l.itemId === item.id);
+      if (line) {
+        haptic.tap();
+        dispatch(changeQty(o.id, line.id, -1));
+      }
+    },
+    [dispatch],
+  );
+
   if (!order) {
     return (
       <View style={styles.screen}>
@@ -91,17 +127,21 @@ export default function OrderScreen() {
   const draftQty = drafts.reduce((n, l) => n + l.qty, 0);
   const itemCount = order.lines.reduce((n, l) => n + l.qty, 0);
   const total = orderTotal(order);
-  const columns = wide ? (width >= 1200 ? 4 : 3) : width >= 600 ? 3 : 2;
-  const categoryColor = new Map(state.categories.map((c) => [c.id, c.color]));
-
-  const qtyInDraft = (itemId: string) => drafts.filter((l) => l.itemId === itemId).reduce((n, l) => n + l.qty, 0);
-  const removeOne = (itemId: string) => {
-    const line = [...drafts].reverse().find((l) => l.itemId === itemId);
-    if (line) dispatch(changeQty(order.id, line.id, -1));
-  };
+  const sideWidth = Math.min(400, Math.round(width * 0.38));
+  const gridWidth = (wide ? width - sideWidth : width) - 20;
+  const columns = columnsFor(gridWidth, small ? 150 : 165, 5);
+  const cellWidth = `${100 / columns}%` as const;
+  const draftQtyByItem = new Map<string, number>();
+  for (const l of drafts) draftQtyByItem.set(l.itemId, (draftQtyByItem.get(l.itemId) ?? 0) + l.qty);
 
   const send = () => {
     dispatch(sendOrder(order.id));
+    haptic.success();
+    const stations = new Set(drafts.map((l) => l.station));
+    toast(
+      stations.size === 2 ? 'Envoyé en cuisine et au bar' : stations.has('bar') ? 'Envoyé au bar' : 'Envoyé en cuisine',
+      '🎉',
+    );
     setTicketOpen(false);
     if (state.settings.returnAfterSend) router.back();
   };
@@ -122,6 +162,8 @@ export default function OrderScreen() {
 
   const pay = (method: PaymentMethod) => {
     dispatch(payOrder(order.id, method));
+    haptic.success();
+    toast(`${order.label} encaissée · ${formatPrice(total, currency)}`, '💰');
     setPayOpen(false);
     setTicketOpen(false);
     router.back();
@@ -184,10 +226,13 @@ export default function OrderScreen() {
                   key={c.id}
                   accessibilityRole="tab"
                   accessibilityState={{ selected }}
-                  onPress={() => setCategoryId(c.id)}
+                  onPress={() => {
+                    haptic.tap();
+                    setCategoryId(c.id);
+                  }}
                   style={[styles.cat, selected && styles.catActive]}
                 >
-                  <View style={[styles.catDot, { backgroundColor: c.color }]} />
+                  <Emoji3D emoji={c.emoji} size={22} />
                   <Text style={[styles.catText, selected && styles.catTextActive]}>{c.name}</Text>
                 </Pressable>
               );
@@ -200,57 +245,31 @@ export default function OrderScreen() {
         <ScrollView style={styles.flex} contentContainerStyle={styles.grid}>
           {visibleItems.length === 0 ? (
             <View style={styles.full}>
-              <Empty icon="restaurant-outline" title="Aucun article" subtitle="Le gérant ajoute la carte dans Gestion › Articles." />
+              <Empty icon="restaurant-outline" emoji="🍽️" title="Aucun article" subtitle="Le gérant ajoute la carte dans Gestion › Articles." />
             </View>
           ) : null}
           {visibleItems.map((item) => {
-            const qty = qtyInDraft(item.id);
-            const disabled = !item.available || readOnly;
+            const category = categoryById.get(item.categoryId);
             return (
-              <View key={item.id} style={[styles.itemWrap, { width: `${100 / columns}%` }]}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Ajouter ${item.name}, ${formatPrice(item.price, currency)}`}
-                  disabled={disabled}
-                  onPress={() => dispatch(addItem(order.id, item, stationOf(item)))}
-                  style={({ pressed }) => [
-                    styles.item,
-                    qty > 0 && styles.itemSelected,
-                    !item.available && styles.itemDisabled,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <View style={[styles.itemBar, { backgroundColor: categoryColor.get(item.categoryId) ?? colors.border }]} />
-                  <View style={styles.itemBody}>
-                    <Text style={styles.itemName} numberOfLines={2}>
-                      {item.name}
-                    </Text>
-                    <Text style={styles.itemPrice}>{item.available ? formatPrice(item.price, currency) : 'Épuisé'}</Text>
-                  </View>
-                  {qty > 0 ? (
-                    <View style={styles.qtyBadge}>
-                      <Text style={styles.qtyText}>{qty}</Text>
-                    </View>
-                  ) : null}
-                </Pressable>
-                {qty > 0 ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Retirer un ${item.name}`}
-                    onPress={() => removeOne(item.id)}
-                    hitSlop={8}
-                    style={styles.minus}
-                  >
-                    <Ionicons name="remove" size={20} color={colors.onDark} />
-                  </Pressable>
-                ) : null}
-              </View>
+              <MenuItemCard
+                key={item.id}
+                item={item}
+                emoji={item.emoji || category?.emoji || '🍽️'}
+                color={category?.color ?? colors.border}
+                qty={draftQtyByItem.get(item.id) ?? 0}
+                currency={currency}
+                width={cellWidth}
+                disabled={!item.available || readOnly}
+                compact={small}
+                onAdd={onAdd}
+                onRemove={onRemove}
+              />
             );
           })}
         </ScrollView>
 
         {wide ? (
-          <ScrollView style={styles.side} contentContainerStyle={styles.sideContent}>
+          <ScrollView style={[styles.side, { width: sideWidth }]} contentContainerStyle={styles.sideContent}>
             {ticket}
           </ScrollView>
         ) : null}
@@ -273,13 +292,13 @@ export default function OrderScreen() {
               ) : null}
             </View>
             <View>
-              <Text style={styles.summaryLabel}>Ticket</Text>
+              {small ? null : <Text style={styles.summaryLabel}>Ticket</Text>}
               <Text style={styles.summaryTotal}>{formatPrice(total, currency)}</Text>
             </View>
-            <Ionicons name="chevron-up" size={18} color={colors.onDarkMuted} />
+            {small ? null : <Ionicons name="chevron-up" size={18} color={colors.onDarkMuted} />}
           </Pressable>
           {readOnly ? null : draftQty > 0 ? (
-            <Button title={`Envoyer (${draftQty})`} icon="paper-plane" large onPress={send} style={styles.flex} />
+            <Button title={small ? 'Envoyer' : `Envoyer (${draftQty})`} icon="paper-plane" large onPress={send} style={styles.flex} />
           ) : order.lines.length ? (
             <Button title="Encaisser" icon="card" large onPress={() => setPayOpen(true)} style={styles.flex} />
           ) : (
@@ -301,6 +320,44 @@ export default function OrderScreen() {
           </View>
         </View>
       </Modal>
+
+      <FormModal visible={choiceItem !== null} title={choiceItem?.name ?? ''} onClose={() => setChoiceItem(null)}>
+        {choiceItem ? (
+          <>
+            <View style={styles.choiceHead}>
+              <Emoji3D emoji={choiceItem.emoji || categoryById.get(choiceItem.categoryId)?.emoji || '🍽️'} size={60} />
+              <View style={styles.flex}>
+                <Text style={styles.choicePrice}>{formatPrice(choiceItem.price, currency)}</Text>
+                {choiceItem.description ? <Text style={styles.choiceDesc}>{choiceItem.description}</Text> : null}
+              </View>
+            </View>
+            {choiceItem.allergens.length ? (
+              <View style={styles.allergens}>
+                <Emoji3D emoji="⚠️" size={18} />
+                <Text style={styles.allergensText}>Allergènes : {choiceItem.allergens.join(', ')}</Text>
+              </View>
+            ) : null}
+            <Text style={styles.choiceLabel}>Choisissez</Text>
+            <View style={styles.choices}>
+              {choiceItem.choices.map((c) => (
+                <Pressable
+                  key={c}
+                  accessibilityRole="button"
+                  accessibilityLabel={c}
+                  onPress={() => {
+                    haptic.impact();
+                    dispatch(addItem(order.id, choiceItem, stationOf(choiceItem), c));
+                    setChoiceItem(null);
+                  }}
+                  style={({ pressed }) => [styles.choice, pressed && styles.choicePressed]}
+                >
+                  <Text style={styles.choiceText}>{c}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        ) : null}
+      </FormModal>
 
       <FormModal
         visible={noteLine !== null}
@@ -428,7 +485,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  side: { width: 400, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: '#FBF7EF' },
+  side: { flexGrow: 0, flexShrink: 0, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: '#FBF7EF' },
   sideContent: { padding: 18, paddingBottom: 40 },
   bottom: {
     flexDirection: 'row',
@@ -477,6 +534,25 @@ const styles = StyleSheet.create({
   sheetHead: { alignItems: 'flex-end', paddingHorizontal: 10 },
   sheetBody: { paddingHorizontal: 18, paddingBottom: 12 },
   quickNotes: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  choiceHead: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  choicePrice: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 28, color: colors.text },
+  choiceDesc: { color: colors.muted, marginTop: 2 },
+  allergens: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.dangerSoft, borderRadius: 12, padding: 10 },
+  allergensText: { flex: 1, color: colors.danger, fontWeight: '700', fontSize: 13 },
+  choiceLabel: { fontSize: 13, fontWeight: '800', color: colors.goldDeep, letterSpacing: 1.2, textTransform: 'uppercase' },
+  choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  choice: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    minHeight: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
+    backgroundColor: colors.ink,
+    paddingHorizontal: 12,
+  },
+  choicePressed: { backgroundColor: colors.gold },
+  choiceText: { color: colors.onDark, fontSize: 17, fontWeight: '800' },
   payTotal: { alignItems: 'center', paddingVertical: 8 },
   payLabel: { fontSize: 13, color: colors.goldDeep, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
   payAmount: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 46, color: colors.text },

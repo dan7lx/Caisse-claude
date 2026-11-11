@@ -1,5 +1,6 @@
 import type {
   AppState,
+  Billing,
   Category,
   License,
   LineStatus,
@@ -21,7 +22,7 @@ import type {
  */
 export type Op =
   | { t: 'createOrder'; id: string; tableId: string | null; label: string; server: string; at: number }
-  | { t: 'addItem'; orderId: string; lineId: string; item: MenuItem; station: Station }
+  | { t: 'addItem'; orderId: string; lineId: string; item: MenuItem; station: Station; note?: string }
   | { t: 'changeQty'; orderId: string; lineId: string; delta: number }
   | { t: 'setLineNote'; orderId: string; lineId: string; note: string }
   | { t: 'removeLine'; orderId: string; lineId: string }
@@ -41,15 +42,17 @@ export type Op =
   | { t: 'moveCategory'; id: string; direction: -1 | 1 }
   | { t: 'upsertItem'; item: MenuItem }
   | { t: 'deleteItem'; id: string }
+  | { t: 'moveItem'; id: string; direction: -1 | 1 }
   | { t: 'setItemAvailable'; id: string; available: boolean }
   | { t: 'addServer'; name: string }
   | { t: 'renameServer'; oldName: string; newName: string }
   | { t: 'removeServer'; name: string }
   | { t: 'replaceData'; data: RestaurantData }
-  | { t: 'setManagerPin'; hash: string | null }
+  | { t: 'setManagerPin'; hash: string | null; length?: number | null }
   | { t: 'setSecurity'; patch: Partial<Security> }
   | { t: 'setLicense'; license: License }
-  | { t: 'setPaymentLinks'; links: PaymentLinks };
+  | { t: 'setPaymentLinks'; links: PaymentLinks }
+  | { t: 'setBilling'; billing: Billing };
 
 function mapOrder(state: AppState, orderId: string, fn: (order: Order) => Order): AppState {
   return { ...state, orders: state.orders.map((o) => (o.id === orderId ? fn(o) : o)) };
@@ -97,7 +100,8 @@ export function reduce(s: AppState, op: Op): AppState {
     case 'addItem':
       return mapOrder(s, op.orderId, (o) => {
         if (o.status !== 'ouverte') return o;
-        const existing = o.lines.find((l) => l.status === 'brouillon' && l.itemId === op.item.id && !l.note);
+        const note = (op.note ?? '').trim();
+        const existing = o.lines.find((l) => l.status === 'brouillon' && l.itemId === op.item.id && l.note === note);
         if (existing) {
           return { ...o, lines: o.lines.map((l) => (l === existing ? { ...l, qty: l.qty + 1 } : l)) };
         }
@@ -111,7 +115,7 @@ export function reduce(s: AppState, op: Op): AppState {
               name: op.item.name,
               unitPrice: op.item.price,
               qty: 1,
-              note: '',
+              note,
               station: op.station,
               status: 'brouillon',
               batch: null,
@@ -195,6 +199,18 @@ export function reduce(s: AppState, op: Op): AppState {
       return { ...s, items: upsert(s.items, op.item) };
     case 'deleteItem':
       return { ...s, items: s.items.filter((i) => i.id !== op.id) };
+    case 'moveItem': {
+      // Échange avec l'article voisin de la même catégorie.
+      const index = s.items.findIndex((i) => i.id === op.id);
+      if (index < 0) return s;
+      const categoryId = s.items[index].categoryId;
+      let target = index + op.direction;
+      while (target >= 0 && target < s.items.length && s.items[target].categoryId !== categoryId) target += op.direction;
+      if (target < 0 || target >= s.items.length) return s;
+      const items = [...s.items];
+      [items[index], items[target]] = [items[target], items[index]];
+      return { ...s, items };
+    }
     case 'setItemAvailable':
       return { ...s, items: s.items.map((i) => (i.id === op.id ? { ...i, available: op.available } : i)) };
     case 'addServer': {
@@ -213,13 +229,18 @@ export function reduce(s: AppState, op: Op): AppState {
     case 'replaceData':
       return { ...s, ...op.data };
     case 'setManagerPin':
-      return { ...s, security: { ...s.security, managerPinHash: op.hash } };
+      return {
+        ...s,
+        security: { ...s.security, managerPinHash: op.hash, managerPinLength: op.hash ? (op.length ?? null) : null },
+      };
     case 'setSecurity':
       return { ...s, security: { ...s.security, ...op.patch } };
     case 'setLicense':
       return { ...s, license: op.license };
     case 'setPaymentLinks':
       return { ...s, paymentLinks: op.links };
+    case 'setBilling':
+      return { ...s, billing: op.billing };
     default:
       return s;
   }

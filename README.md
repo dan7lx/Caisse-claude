@@ -3,20 +3,21 @@
 Application de prise de commande pour restaurant, pensée pour les serveurs, la cuisine et le bar.
 Elle fonctionne sur **iPhone, Android** et **navigateur** (à installer sur l’écran d’accueil).
 
-| Salle | Prise de commande | Cuisine & Bar | Lobby de l’équipe |
+| Salle | Prise de commande | Cuisine & Bar | Gestion |
 |---|---|---|---|
-| ![Salle](docs/captures/salle.png) | ![Commande](docs/captures/prise-de-commande.png) | ![Cuisine](docs/captures/cuisine.png) | ![Lobby](docs/captures/lobby.png) |
+| ![Salle](docs/captures/salle.png) | ![Commande](docs/captures/prise-de-commande.png) | ![Cuisine](docs/captures/cuisine.png) | ![Gestion](docs/captures/gestion.png) |
 
-| Abonnement | Rappel de paiement | Code gérant |
-|---|---|---|
-| ![Abonnement](docs/captures/abonnement.png) | ![Rappel](docs/captures/rappel-paiement.png) | ![Code gérant](docs/captures/code-gerant.png) |
+| Lobby + QR code | Paiement | Mode démo | Tablette |
+|---|---|---|---|
+| ![Lobby](docs/captures/lobby.png) | ![Paiement](docs/captures/paiement.png) | ![Démo](docs/captures/mode-demo.png) | ![Tablette](docs/captures/tablette.png) |
 
 ## Fonctionnalités
 
 **Salle** : plan des tables par zones. La couleur indique l’état : libre, en cours, à envoyer ou prêt à servir. Chaque table affiche le montant, la durée et le serveur. Toucher une table ouvre sa commande.
 
 **Prise de commande, en trois gestes** : table → plats → **Envoyer**.
-- Barre de catégories en haut. Toucher un plat l’ajoute ; un bouton « − » apparaît sur la carte du plat.
+- Barre de catégories en haut, emojis 3D sur chaque plat. Toucher un plat l’ajoute ; un bouton « − » apparaît sur la carte du plat.
+- Les plats avec **choix** (cuisson, Normal/Zéro…) ouvrent un choix rapide, avec les **allergènes** affichés.
 - En bas : le ticket (total, nombre d’articles) et le bouton **Envoyer**, qui ramène au plan de salle (réglable).
 - Le ticket permet de modifier les quantités, les couverts et les notes (« saignant », « sans glaçons »…), de marquer les plats « Servis », d’encaisser (espèces, carte, autre ; TVA et montant par couvert) et d’annuler.
 - Sur tablette, le ticket reste affiché à droite de la carte.
@@ -26,21 +27,27 @@ Elle fonctionne sur **iPhone, Android** et **navigateur** (à installer sur l’
 **Cuisine / Bar** : un ticket par envoi, avec chronomètre. Le ticket passe en rouge en cas de retard. Toucher une ligne la fait avancer : envoyé → en préparation → prêt. Les tickets prêts récemment peuvent être rappelés.
 
 **Gestion**, protégée par le **code gérant** :
-- articles et prix, catégories (envoi en cuisine ou au bar), tables et zones, serveurs ;
-- restaurant (nom, devise, TVA, alerte cuisine, retour au plan de salle) ;
+- **identité & logo** : le gérant ajoute le logo de son commerce (affiché sur le plan de salle, la Gestion et l’écran d’accueil), le nom, le slogan, l’adresse et le téléphone ;
+- **carte complète** : articles avec emoji 3D, prix, description, **choix à la commande**, **14 allergènes**, disponibilité, duplication et ordre d’affichage ; catégories avec emoji, couleur et poste (cuisine ou bar) ;
+- tables et zones, serveurs, lobby de l’équipe ;
+- préférences (devise, TVA, alerte cuisine, retour au plan de salle, **verrouillage automatique**) ;
 - historique et statistiques, abonnement, code gérant, données.
 
-**Équipe / lobby** : le gérant crée un lobby avec un **code d’accès à 6 caractères**. Serveurs et cuisiniers le rejoignent depuis leur téléphone. Commandes, plats prêts, carte et tables sont alors partagés en direct (environ 2 secondes), avec une file d’attente si le réseau coupe. Chaque appareil choisit son prénom et son poste : « Salle / serveur », ou « Cuisine / bar » qui n’affiche que les tickets.
+**Code gérant** : ouverture automatique dès le dernier chiffre, blocage progressif après 5 erreurs, verrouillage automatique après inactivité (2 à 30 min), changement de code avec l’ancien code (codes trop simples refusés), « Code oublié ? » renvoie vers l’administrateur.
+
+**Équipe / lobby** : deux grands choix, **Créer** ou **Rejoindre**. Le gérant crée un lobby (en un geste une fois le serveur renseigné), avec un **QR code** que les employés scannent avec l’appareil photo pour rejoindre sans rien taper. Le gérant crée un lobby avec un **code d’accès à 6 caractères**. Serveurs et cuisiniers le rejoignent depuis leur téléphone. Commandes, plats prêts, carte et tables sont alors partagés en direct (environ 2 secondes), avec une file d’attente si le réseau coupe. Chaque appareil choisit son prénom et son poste : « Salle / serveur », ou « Cuisine / bar » qui n’affiche que les tickets.
 
 **Abonnement** :
+- **Mode démo** : avec le code démo, 24 h d’utilisation gratuite avec un minuteur affiché en haut de l’écran ; à la fin, l’application se bloque et demande le paiement. Une seule démo par licence (l’administrateur peut la réinitialiser).
 - **Mensuel : 45,99 €** par mois, dû le 1er. Un rappel s’affiche 5 jours avant (fenêtre une fois par jour et bandeau permanent), avec un calendrier. Si le paiement n’est pas enregistré, l’application est **bloquée automatiquement** le 1er à minuit.
 - **À vie : 599,99 €** en paiement unique.
-- Le bouton « Payer » ouvre votre lien de paiement (par exemple un lien Stripe). Le client saisit ensuite le **code d’activation** que vous lui envoyez.
+- Le bouton « Payer » affiche le **montant à payer**, le **bénéficiaire**, l’**IBAN** et une **communication** (identifiant de licence et mois), avec un bouton « Copier » pour chacun, et la mention « virement instantané ». Un lien de paiement par carte peut s’y ajouter. Le client saisit ensuite le **code d’activation** que vous lui envoyez.
 - Tous les appareils d’un lobby partagent la licence du restaurant.
 
 **Administration**, avec le code administrateur. Saisi dans le champ « Code d’activation », ce code débloque une licence à vie et ouvre l’écran **Gestion › Administration**. On peut y :
 - prolonger d’un mois, passer à vie ou révoquer la licence ;
 - retirer au gérant l’accès à la Gestion ou la création de lobby, et réinitialiser son code ;
+- modifier les **coordonnées bancaires** affichées au paiement, réinitialiser ou arrêter le mode démo ;
 - générer les **codes d’activation** de vos clients (mensuel pour un mois donné, ou à vie) à partir de leur identifiant de licence ;
 - renseigner les liens de paiement, et fermer le lobby.
 
@@ -84,6 +91,14 @@ Pour que plusieurs téléphones partagent les commandes, il faut un serveur. L�
   npx eas-cli@latest build --platform android --profile preview   # APK Android
   npx eas-cli@latest build --platform ios --profile production    # compte Apple Developer requis
   ```
+
+## Adapté à tous les téléphones
+
+Mise en page vérifiée sur iPhone SE (320 px), Galaxy S8 (360 px), iPhone 13 (390 px), Pixel 7 (412 px) et iPad en paysage : grilles qui s’adaptent à la largeur, libellés raccourcis sur petit écran, ticket affiché à côté de la carte sur tablette. Retour haptique (vibration légère) sur iPhone et Android, notifications éphémères, transitions animées.
+
+## Crédits
+
+Emojis 3D : [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) de Microsoft, licence MIT (`assets/emoji/LICENSE-fluentui-emoji.txt`).
 
 ## Développement
 

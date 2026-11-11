@@ -4,7 +4,7 @@ import { ActivityIndicator, AppState as RNAppState, Platform, View } from 'react
 
 import { backend, BackendError, normalizeServer, parseInvite, type RemoteEvent } from '../sync/backend';
 import { colors } from '../theme';
-import { createDevice, createInitialState, migrate, uid } from './defaults';
+import { createDevice, createInitialState, migrate, normalize, uid } from './defaults';
 import { reduce, reduceAll, type Op } from './ops';
 import type { AppState, DeviceState, Role, ServerConfig } from './types';
 
@@ -55,6 +55,10 @@ interface StoreValue {
   updateDevice: (patch: Partial<DeviceState>) => void;
   session: Session;
   setSession: (patch: Partial<Session>) => void;
+  /** Signale une activité dans la Gestion (repousse le verrouillage automatique). */
+  touchSession: () => void;
+  /** Résultat d'une saisie de code gérant : compte les échecs et bloque après 5 essais. */
+  recordPinAttempt: (ok: boolean) => void;
   sync: SyncInfo;
   pendingCount: number;
   invite: Invite | null;
@@ -132,10 +136,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (cancelled) return;
       const migrated = migrate(rawState);
       const state = migrated?.state ?? createInitialState();
-      const dev = (rawDevice as DeviceState | null)?.version === 1 ? (rawDevice as DeviceState) : createDevice();
+      const dev: DeviceState =
+        (rawDevice as DeviceState | null)?.version === 1 ? { ...createDevice(), ...(rawDevice as DeviceState) } : createDevice();
       if (!rawDevice && migrated?.currentServer) dev.currentServer = migrated.currentServer;
       const sd = rawSync as SyncData | null;
-      const validSync = dev.lobby && sd && sd.lobbyId === dev.lobby.lobbyId ? sd : null;
+      const validSync =
+        dev.lobby && sd && sd.lobbyId === dev.lobby.lobbyId ? { ...sd, confirmed: normalize(sd.confirmed) } : null;
       if (!validSync) dev.lobby = null;
 
       if (Platform.OS === 'web') {
@@ -173,6 +179,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const dispatch = useCallback(
     (op: Op) => {
+      lastActivity.current = Date.now();
       const cur = syncRef.current;
       if (deviceRef.current?.lobby && cur) {
         commitSync({ ...cur, pending: [...cur.pending, { opId: uid(), op }] });
@@ -191,7 +198,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [commitDevice],
   );
 
-  const setSession = useCallback((patch: Partial<Session>) => setSessionState((s) => ({ ...s, ...patch })), []);
+  const lastActivity = useRef(Date.now());
+  const touchSession = useCallback(() => {
+    lastActivity.current = Date.now();
+  }, []);
+  const setSession = useCallback((patch: Partial<Session>) => {
+    lastActivity.current = Date.now();
+    setSessionState((s) => ({ ...s, ...patch }));
+  }, []);
+
+  const recordPinAttempt = useCallback(
+    (ok: boolean) => {
+      const dev = deviceRef.current;
+      if (!dev) return;
+      if (ok) {
+        if (dev.pinFailures || dev.pinLockedUntil) commitDevice({ ...dev, pinFailures: 0, pinLockedUntil: null });
+        return;
+      }
+      const failures = dev.pinFailures + 1;
+      // À partir de 5 erreurs : 30 s de blocage, doublé à chaque nouvelle erreur (max. 15 min).
+      const lockMs = failures >= 5 ? Math.min(15 * 60_000, 30_000 * 2 ** (failures - 5)) : 0;
+      commitDevice({ ...dev, pinFailures: failures, pinLockedUntil: lockMs ? Date.now() + lockMs : null });
+    },
+    [commitDevice],
+  );
 
   /** Intègre les opérations confirmées par le serveur, dans l'ordre. */
   const applyEvents = useCallback(
@@ -255,9 +285,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           await backend.saveSnapshot(lobby.server, lobby.lobbyId, after.confirmed, after.seq);
           if (syncRef.current) commitSync({ ...syncRef.current, snapshotSeq: after.seq });
         }
-        if (!stopped) setSync({ status: closed ? 'ferme' : 'ok', lastSync: Date.now(), error: null });
+        if (!stopped) {
+          const status: SyncStatus = closed ? 'ferme' : 'ok';
+          const now = Date.now();
+          // Évite de redessiner toute l'application toutes les 2 secondes quand rien ne change.
+          setSync((prev) =>
+            prev.status === status && prev.error === null && prev.lastSync && now - prev.lastSync < 15000
+              ? prev
+              : { status, lastSync: now, error: null },
+          );
+        }
       } catch (e) {
-        if (!stopped) setSync((s) => ({ ...s, status: 'hors_ligne', error: errorMessage(e) }));
+        if (!stopped) {
+          const message = errorMessage(e);
+          setSync((s) => (s.status === 'hors_ligne' && s.error === message ? s : { ...s, status: 'hors_ligne', error: message }));
+        }
       } finally {
         busy = false;
         if (again && !stopped) {
@@ -301,7 +343,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     async (rawServer: ServerConfig, code: string, profile: { name: string; role: Role }) => {
       const server = normalizeServer(rawServer);
       const res = await backend.joinLobby(server, code);
-      let confirmed = res.snapshot;
+      let confirmed = normalize(res.snapshot);
       let seq = res.snapshot_seq;
       for (let page = 0; page < 50; page++) {
         const pulled = await backend.pull(server, res.lobby_id, seq);
@@ -346,7 +388,63 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const clearInvite = useCallback(() => setInvite(null), []);
 
-  if (!loaded || !state || !device) {
+  // Verrouillage automatique de la Gestion après la durée d'inactivité choisie par le gérant.
+  const autoLockMinutes = state?.settings.autoLockMinutes ?? 0;
+  const unlocked = session.manager || session.admin;
+  useEffect(() => {
+    if (!unlocked || !autoLockMinutes) return;
+    const timer = setInterval(() => {
+      if (Date.now() - lastActivity.current > autoLockMinutes * 60_000) {
+        setSessionState({ manager: false, admin: false });
+      }
+    }, 10_000);
+    return () => clearInterval(timer);
+  }, [unlocked, autoLockMinutes]);
+
+  const pendingCount = syncData?.pending.length ?? 0;
+  const value = useMemo<StoreValue | null>(
+    () =>
+      state && device
+        ? {
+            state,
+            device,
+            dispatch,
+            updateDevice,
+            session,
+            setSession,
+            touchSession,
+            recordPinAttempt,
+            sync,
+            pendingCount,
+            invite,
+            clearInvite,
+            createLobby,
+            joinLobby,
+            leaveLobby,
+            closeLobby,
+          }
+        : null,
+    [
+      state,
+      device,
+      dispatch,
+      updateDevice,
+      session,
+      setSession,
+      touchSession,
+      recordPinAttempt,
+      sync,
+      pendingCount,
+      invite,
+      clearInvite,
+      createLobby,
+      joinLobby,
+      leaveLobby,
+      closeLobby,
+    ],
+  );
+
+  if (!loaded || !value) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ink }}>
         <ActivityIndicator size="large" color={colors.gold} />
@@ -354,28 +452,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return (
-    <StoreContext.Provider
-      value={{
-        state,
-        device,
-        dispatch,
-        updateDevice,
-        session,
-        setSession,
-        sync,
-        pendingCount: syncData?.pending.length ?? 0,
-        invite,
-        clearInvite,
-        createLobby,
-        joinLobby,
-        leaveLobby,
-        closeLobby,
-      }}
-    >
-      {children}
-    </StoreContext.Provider>
-  );
+  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 
 export function useStore(): StoreValue {

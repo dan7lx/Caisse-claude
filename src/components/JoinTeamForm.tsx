@@ -4,7 +4,10 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { BUILT_IN_SERVER } from '../config';
 import { useStore } from '../store/StoreProvider';
 import type { Role } from '../store/types';
-import { colors, fonts } from '../theme';
+import { colors } from '../theme';
+import { haptic } from '../utils/haptics';
+import { useToast } from './Toast';
+import { CodeBoxes } from './CodeBoxes';
 import { Button, Field, Segmented } from './ui';
 
 interface Props {
@@ -23,6 +26,7 @@ export function JoinTeamForm({ dark, onJoined }: Props) {
   const [key, setKey] = useState(knownServer?.anonKey ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     if (invite) {
@@ -46,6 +50,8 @@ export function JoinTeamForm({ dark, onJoined }: Props) {
     try {
       await joinLobby({ url, anonKey: key }, code, { name, role });
       clearInvite();
+      haptic.success();
+      toast('Bienvenue dans l’équipe !', '👋');
       onJoined?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Impossible de rejoindre le lobby.');
@@ -56,17 +62,8 @@ export function JoinTeamForm({ dark, onJoined }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <Text style={[styles.label, { color: fg }]}>Code du lobby</Text>
-      <TextInput
-        value={code}
-        onChangeText={(t) => setCode(t.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
-        placeholder="ABC123"
-        placeholderTextColor={dark ? colors.onDarkMuted : '#A99E90'}
-        autoCapitalize="characters"
-        autoCorrect={false}
-        accessibilityLabel="Code du lobby"
-        style={[styles.code, dark ? styles.codeDark : styles.codeLight]}
-      />
+      <Text style={[styles.label, { color: fg }]}>Code du lobby (6 caractères)</Text>
+      <CodeBoxes value={code} onChange={setCode} dark={dark} />
       <Text style={[styles.label, { color: fg }]}>Votre prénom</Text>
       <TextInput
         value={name}
@@ -96,7 +93,7 @@ export function JoinTeamForm({ dark, onJoined }: Props) {
         </View>
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button title={busy ? 'Connexion…' : 'Rejoindre l’équipe'} icon="people" onPress={join} disabled={busy} large />
+      <Button title={busy ? 'Connexion…' : 'Rejoindre l’équipe'} icon="people" onPress={join} disabled={busy || code.length < 6} large />
     </View>
   );
 }
@@ -104,17 +101,6 @@ export function JoinTeamForm({ dark, onJoined }: Props) {
 const styles = StyleSheet.create({
   wrap: { gap: 10 },
   label: { fontWeight: '700', fontSize: 14, marginTop: 4 },
-  code: {
-    fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'],
-    fontSize: 34,
-    letterSpacing: 10,
-    textAlign: 'center',
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingVertical: 10,
-  },
-  codeDark: { backgroundColor: colors.ink, borderColor: colors.gold, color: colors.gold },
-  codeLight: { backgroundColor: '#FFFFFF', borderColor: colors.gold, color: colors.ink },
   input: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
   inputDark: { backgroundColor: colors.ink, borderColor: colors.ink3, color: colors.onDark },
   inputLight: { backgroundColor: '#FFFFFF', borderColor: colors.border, color: colors.text },

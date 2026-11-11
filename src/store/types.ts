@@ -12,6 +12,8 @@ export interface Category {
   name: string;
   station: Station;
   color: string;
+  /** Emoji affiché en 3D (ex. « 🥗 »). */
+  emoji: string;
 }
 
 export interface MenuItem {
@@ -22,6 +24,11 @@ export interface MenuItem {
   categoryId: string;
   description: string;
   available: boolean;
+  /** Emoji propre à l'article ('' = emoji de la catégorie). */
+  emoji: string;
+  /** Choix à faire à la commande (ex. cuissons). Vide = pas de choix. */
+  choices: string[];
+  allergens: string[];
 }
 
 export interface Table {
@@ -71,11 +78,20 @@ export interface Settings {
   alertMinutes: number;
   /** Revenir au plan de salle après « Envoyer ». */
   returnAfterSend: boolean;
+  /** Logo du commerce (image en data URI), ou null. */
+  logo: string | null;
+  slogan: string;
+  address: string;
+  phone: string;
+  /** Verrouillage automatique de la Gestion après N minutes sans activité (0 = jamais). */
+  autoLockMinutes: number;
 }
 
 export interface Security {
   /** Empreinte du code gérant (null tant qu'il n'est pas créé). */
   managerPinHash: string | null;
+  /** Nombre de chiffres du code gérant (validation automatique). */
+  managerPinLength: number | null;
   /** L'administrateur peut retirer au gérant l'accès à la Gestion… */
   managerCanManage: boolean;
   /** … ou la création de lobby. */
@@ -91,11 +107,19 @@ export interface License {
   /** Abonnement mensuel : payé jusqu'à cette date (1er du mois suivant, 00:00). */
   paidUntil: number | null;
   activatedAt: number | null;
+  /** Début du mode démo de 24 h (null = jamais utilisé). */
+  demoStartedAt: number | null;
 }
 
 export interface PaymentLinks {
   mensuel: string;
   vie: string;
+}
+
+/** Coordonnées du virement affichées au moment du paiement. */
+export interface Billing {
+  iban: string;
+  holder: string;
 }
 
 /** Données du restaurant, partagées entre tous les appareils d'un lobby. */
@@ -111,6 +135,7 @@ export interface AppState {
   security: Security;
   license: License;
   paymentLinks: PaymentLinks;
+  billing: Billing;
 }
 
 /** Données de la carte et de la salle, sans la sécurité ni la licence. */
@@ -143,4 +168,7 @@ export interface DeviceState {
   server: ServerConfig | null;
   /** Date (AAAA-MM-JJ) du dernier rappel de paiement fermé. */
   reminderDismissedOn: string | null;
+  /** Essais de code gérant ratés d'affilée, et blocage temporaire qui en découle. */
+  pinFailures: number;
+  pinLockedUntil: number | null;
 }

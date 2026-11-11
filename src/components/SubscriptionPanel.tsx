@@ -1,39 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { PRICES } from '../config';
-import { applyCode } from '../license/license';
+import { DEMO_HOURS, PRICES } from '../config';
+import { applyCode, formatCountdown, isDemoCode, licenseStatus, startDemo } from '../license/license';
 import { setLicense } from '../store/actions';
-import { useStore } from '../store/StoreProvider';
-import type { Plan } from '../store/types';
+import { useNow, useStore } from '../store/StoreProvider';
 import { colors, fonts, shadow } from '../theme';
 import { formatPrice } from '../utils/format';
-import { Button, notify } from './ui';
+import { Emoji3D } from './Emoji3D';
+import { PaymentSheet } from './PaymentSheet';
+import { useToast } from './Toast';
+import { Button, PinPad } from './ui';
 
 interface Props {
   /** Fond sombre (écran de blocage). */
   dark?: boolean;
-  onActivated?: () => void;
 }
 
-/** Offres d'abonnement, paiement et saisie d'un code d'activation (ou du code administrateur). */
-export function SubscriptionPanel({ dark, onActivated }: Props) {
+/** Formules (mensuelle, à vie), mode démo, paiement et saisie d'un code d'activation. */
+export function SubscriptionPanel({ dark }: Props) {
   const { state, dispatch, setSession } = useStore();
+  const toast = useToast();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
-
-  const pay = (plan: Exclude<Plan, 'aucun'>) => {
-    const link = state.paymentLinks[plan];
-    if (!link) {
-      notify(
-        'Paiement',
-        `Le paiement en ligne n’est pas encore configuré.\nContactez votre fournisseur en indiquant votre identifiant de licence : ${state.license.id}`,
-      );
-      return;
-    }
-    Linking.openURL(link).catch(() => notify('Paiement', 'Impossible d’ouvrir la page de paiement.'));
-  };
+  const [paying, setPaying] = useState<'mensuel' | 'vie' | null>(null);
+  const [demoPad, setDemoPad] = useState(false);
 
   const submit = () => {
     const result = applyCode(state.license, code);
@@ -46,11 +38,10 @@ export function SubscriptionPanel({ dark, onActivated }: Props) {
     setError(null);
     if (result.kind === 'admin') {
       setSession({ admin: true, manager: true });
-      notify('Mode administrateur', 'Licence à vie débloquée. Vous contrôlez tous les accès (Gestion › Administration).');
+      toast('Mode administrateur : licence à vie débloquée', '🛡️');
     } else {
-      notify('Abonnement activé', result.message);
+      toast(result.message, result.kind === 'demo' ? '🎁' : '🎉');
     }
-    onActivated?.();
   };
 
   const fg = dark ? colors.onDark : colors.text;
@@ -60,24 +51,31 @@ export function SubscriptionPanel({ dark, onActivated }: Props) {
     <View style={styles.wrap}>
       <View style={styles.plans}>
         <PlanCard
+          emoji="🗓️"
           title="Mensuel"
           price={formatPrice(PRICES.mensuel)}
           period="/ mois"
           lines={['Sans engagement', 'Échéance le 1er de chaque mois', 'Rappel 5 jours avant']}
-          onPay={() => pay('mensuel')}
+          onPay={() => setPaying('mensuel')}
         />
         <PlanCard
+          emoji="💎"
           title="À vie"
           price={formatPrice(PRICES.vie)}
           period="une fois"
           lines={['Paiement unique', 'Plus aucune échéance', 'Toutes les mises à jour']}
           highlight
-          onPay={() => pay('vie')}
+          onPay={() => setPaying('vie')}
         />
       </View>
 
+      <DemoCard dark={dark} onActivate={() => setDemoPad(true)} />
+
       <View style={[styles.codeBox, dark ? styles.codeBoxDark : styles.codeBoxLight]}>
-        <Text style={[styles.codeTitle, { color: fg }]}>Code d’activation</Text>
+        <View style={styles.codeHead}>
+          <Emoji3D emoji="🔑" size={30} />
+          <Text style={[styles.codeTitle, { color: fg }]}>Code d’activation</Text>
+        </View>
         <Text style={[styles.codeHint, { color: muted }]}>
           Après paiement, saisissez le code reçu. Identifiant de licence :{' '}
           <Text style={[styles.licenseId, { color: colors.gold }]} selectable>
@@ -103,11 +101,81 @@ export function SubscriptionPanel({ dark, onActivated }: Props) {
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </View>
+
+      <PaymentSheet plan={paying} onClose={() => setPaying(null)} />
+
+      <Modal visible={demoPad} animationType="slide" onRequestClose={() => setDemoPad(false)}>
+        <View style={styles.pinScreen}>
+          <PinPad
+            emoji="🎁"
+            title="Mode démo"
+            subtitle={`Entrez le code démo pour ${DEMO_HOURS} h d’utilisation gratuite.`}
+            length={4}
+            onSubmit={(c) => {
+              if (!isDemoCode(c)) return 'Code démo incorrect.';
+              const started = startDemo(state.license);
+              if (!started) return 'Le mode démo a déjà été utilisé sur cette licence.';
+              dispatch(setLicense(started));
+              setDemoPad(false);
+              toast(`Mode démo activé : ${DEMO_HOURS} h offertes`, '🎁');
+              return null;
+            }}
+          />
+          <Button title="Annuler" variant="ghost" icon="close" onPress={() => setDemoPad(false)} />
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+/** Carte du mode démo : bouton d'activation, minuteur en cours, ou démo terminée. */
+function DemoCard({ dark, onActivate }: { dark?: boolean; onActivate: () => void }) {
+  const { state } = useStore();
+  const status = licenseStatus(state.license);
+  const now = useNow(status.demo ? 1000 : 60_000);
+  const live = licenseStatus(state.license, now);
+  if (live.plan === 'vie' || (live.plan === 'mensuel' && live.dueDate && live.dueDate > now)) return null;
+
+  return (
+    <View style={[styles.demo, dark && styles.demoDark]}>
+      <Emoji3D emoji={live.demo ? '⏱️' : '🎁'} size={52} />
+      <View style={styles.flex}>
+        <Text style={[styles.demoTitle, dark && { color: colors.onDark }]}>
+          {live.demo ? 'Mode démo en cours' : `Mode démo · ${DEMO_HOURS} h gratuites`}
+        </Text>
+        {live.demo && live.demoEndsAt ? (
+          <>
+            <Text style={styles.demoTimer}>{formatCountdown(live.demoEndsAt - now)}</Text>
+            <Text style={[styles.demoText, dark && { color: colors.onDarkMuted }]}>
+              Ensuite, l’application se bloque et demande le paiement.
+            </Text>
+          </>
+        ) : live.demoUsed ? (
+          <Text style={[styles.demoText, dark && { color: colors.onDarkMuted }]}>
+            L’essai gratuit a déjà été utilisé. Choisissez une formule pour continuer.
+          </Text>
+        ) : (
+          <Text style={[styles.demoText, dark && { color: colors.onDarkMuted }]}>
+            Essayez toute l’application avec le code démo. Un minuteur de {DEMO_HOURS} h démarre à l’activation.
+          </Text>
+        )}
+      </View>
+      {!live.demo && !live.demoUsed ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Activer le mode démo"
+          onPress={onActivate}
+          style={({ pressed }) => [styles.demoBtn, pressed && { opacity: 0.85 }]}
+        >
+          <Text style={styles.demoBtnText}>Activer</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
 
 interface PlanCardProps {
+  emoji: string;
   title: string;
   price: string;
   period: string;
@@ -116,7 +184,7 @@ interface PlanCardProps {
   onPay: () => void;
 }
 
-function PlanCard({ title, price, period, lines, highlight, onPay }: PlanCardProps) {
+function PlanCard({ emoji, title, price, period, lines, highlight, onPay }: PlanCardProps) {
   return (
     <View style={[styles.plan, highlight && styles.planHighlight]}>
       {highlight ? (
@@ -124,7 +192,10 @@ function PlanCard({ title, price, period, lines, highlight, onPay }: PlanCardPro
           <Text style={styles.ribbonText}>LE PLUS AVANTAGEUX</Text>
         </View>
       ) : null}
-      <Text style={[styles.planTitle, highlight && { color: colors.gold }]}>{title}</Text>
+      <View style={styles.planHead}>
+        <Emoji3D emoji={emoji} size={44} />
+        <Text style={[styles.planTitle, highlight && { color: colors.gold }]}>{title}</Text>
+      </View>
       <View style={styles.priceRow}>
         <Text style={[styles.price, highlight && { color: colors.onDark }]}>{price}</Text>
         <Text style={[styles.period, highlight && { color: colors.onDarkMuted }]}>{period}</Text>
@@ -152,6 +223,7 @@ function PlanCard({ title, price, period, lines, highlight, onPay }: PlanCardPro
 
 const styles = StyleSheet.create({
   wrap: { gap: 16 },
+  flex: { flex: 1 },
   plans: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
   plan: {
     flexGrow: 1,
@@ -175,13 +247,14 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   ribbonText: { fontSize: 10, fontWeight: '900', color: colors.ink, letterSpacing: 1 },
+  planHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   planTitle: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 22, color: colors.text },
-  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },
   price: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 34, color: colors.text },
   period: { fontSize: 14, color: colors.muted, fontWeight: '600' },
   lines: { gap: 6 },
   line: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  lineText: { fontSize: 14, color: colors.text },
+  lineText: { fontSize: 14, color: colors.text, flexShrink: 1 },
   payBtn: {
     marginTop: 6,
     flexDirection: 'row',
@@ -194,15 +267,33 @@ const styles = StyleSheet.create({
   payBtnGold: { backgroundColor: colors.gold },
   payBtnDark: { backgroundColor: colors.ink },
   payText: { fontSize: 16, fontWeight: '800' },
+  demo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: 20,
+    backgroundColor: '#FFF6E0',
+    borderWidth: 1,
+    borderColor: colors.goldLight,
+  },
+  demoDark: { backgroundColor: '#2B2213', borderColor: colors.goldDeep },
+  demoTitle: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 19, color: colors.text },
+  demoTimer: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums', 'tabular-nums'], fontSize: 30, color: colors.gold },
+  demoText: { color: colors.muted, fontSize: 13, marginTop: 2, lineHeight: 18 },
+  demoBtn: { backgroundColor: colors.gold, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  demoBtnText: { color: colors.ink, fontWeight: '800' },
   codeBox: { borderRadius: 18, padding: 16, gap: 8, borderWidth: 1 },
   codeBoxDark: { backgroundColor: colors.ink2, borderColor: colors.ink3 },
   codeBoxLight: { backgroundColor: colors.card, borderColor: colors.border },
+  codeHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   codeTitle: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 19 },
   codeHint: { fontSize: 13, lineHeight: 19 },
   licenseId: { fontWeight: '800', letterSpacing: 1 },
   codeRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   codeInput: {
     flex: 1,
+    minWidth: 0,
     borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 14,
@@ -213,4 +304,5 @@ const styles = StyleSheet.create({
   codeInputDark: { backgroundColor: colors.ink, borderColor: colors.ink3, color: colors.onDark },
   codeInputLight: { backgroundColor: '#FFFFFF', borderColor: colors.border, color: colors.text },
   error: { color: '#E8857C', fontWeight: '700' },
+  pinScreen: { flex: 1, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
 });

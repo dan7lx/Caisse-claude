@@ -4,21 +4,30 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { formatLongDate, PaymentCalendar } from '../components/PaymentCalendar';
 import { SubscriptionPanel } from '../components/SubscriptionPanel';
 import { Card, Notice, SectionTitle } from '../components/ui';
-import { licenseStatus } from '../license/license';
+import { formatCountdown, licenseStatus } from '../license/license';
 import { useNow, useStore } from '../store/StoreProvider';
 import { colors, fonts } from '../theme';
 
 export default function SubscriptionScreen() {
   const { state } = useStore();
-  const now = useNow(30000);
+  const demo = licenseStatus(state.license).demo;
+  const now = useNow(demo ? 1000 : 30000);
   const status = licenseStatus(state.license, now);
 
   const title =
-    status.plan === 'vie' ? 'Licence à vie' : status.plan === 'mensuel' && status.active ? 'Abonnement mensuel' : 'Aucun abonnement actif';
+    status.plan === 'vie'
+      ? 'Licence à vie'
+      : status.plan === 'mensuel' && status.active && !status.demo
+        ? 'Abonnement mensuel'
+        : status.demo
+          ? 'Mode démo'
+          : 'Aucun abonnement actif';
   const subtitle =
     status.plan === 'vie'
       ? 'Aucune échéance.'
-      : status.active && status.dueDate
+      : status.demo && status.demoEndsAt
+        ? `Temps restant : ${formatCountdown(status.demoEndsAt - now)} · ensuite, paiement requis.`
+        : status.active && status.dueDate
         ? `Prochaine échéance : ${formatLongDate(status.dueDate)}${status.daysLeft !== null ? ` (dans ${status.daysLeft} j)` : ''}`
         : 'L’application est bloquée tant qu’aucune formule n’est active.';
 

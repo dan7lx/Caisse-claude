@@ -1,4 +1,4 @@
-import type { PaymentLinks, ServerConfig } from './store/types';
+import type { Billing, PaymentLinks, ServerConfig } from './store/types';
 
 /** Tarifs des abonnements, en centimes. */
 export const PRICES = { mensuel: 4599, vie: 59999 } as const;
@@ -17,6 +17,15 @@ export const DEFAULT_PAYMENT_LINKS: PaymentLinks = { mensuel: '', vie: '' };
  * Voir src/license/license.ts › isAdminCode.
  */
 export const ADMIN_CODE_HASH = '6dcba733a7992a1a5e17284f6cfa6fe9822eaaa4a7fa49eb45d8e54818978df2';
+
+/** Empreinte SHA-256 du code du mode démo (voir license.ts › isDemoCode). */
+export const DEMO_CODE_HASH = '7a17432dc32c35040f17cf39091772c12e167072d63a9ba7515e2cc52320f0a5';
+
+/** Durée du mode démo, en heures. */
+export const DEMO_HOURS = 24;
+
+/** Coordonnées bancaires affichées au moment du paiement (modifiables dans Administration). */
+export const DEFAULT_BILLING: Billing = { iban: 'BE71650156242169', holder: 'R Pereira' };
 
 /** Sel des codes d'activation générés par l'administrateur. */
 export const LICENSE_SALT = 'caisse-resto:licence:v1:7f3a9c2e';

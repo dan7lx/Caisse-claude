@@ -3,12 +3,14 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Emoji3D } from '../../components/Emoji3D';
 import { Badge, Empty, Segmented } from '../../components/ui';
 import { countByStatus, openOrders, orderTotal, tableState } from '../../store/selectors';
 import { useNow, useStore } from '../../store/StoreProvider';
 import type { Order } from '../../store/types';
 import { colors, fonts, lineStatusStyle, shadow, tableStateStyle } from '../../theme';
 import { formatElapsed, formatPrice } from '../../utils/format';
+import { useLayout } from '../../utils/layout';
 
 type Filter = 'toutes' | 'miennes' | 'a_servir';
 
@@ -17,6 +19,7 @@ export default function OrdersScreen() {
   const router = useRouter();
   const now = useNow();
   const [filter, setFilter] = useState<Filter>('toutes');
+  const { small } = useLayout();
 
   const me = device.currentServer;
   const all = openOrders(state).sort((a, b) => a.createdAt - b.createdAt);
@@ -34,9 +37,9 @@ export default function OrdersScreen() {
           value={filter}
           onChange={setFilter}
           options={[
-            { value: 'toutes', label: `Toutes (${all.length})` },
-            { value: 'miennes', label: 'Les miennes' },
-            { value: 'a_servir', label: `À servir (${toServe})` },
+            { value: 'toutes', label: small ? `Toutes ${all.length}` : `Toutes (${all.length})` },
+            { value: 'miennes', label: small ? 'Moi' : 'Les miennes' },
+            { value: 'a_servir', label: small ? `Servir ${toServe}` : `À servir (${toServe})` },
           ]}
         />
       </View>
@@ -47,6 +50,7 @@ export default function OrdersScreen() {
         ListEmptyComponent={
           <Empty
             icon="receipt-outline"
+            emoji={filter === 'a_servir' ? '🛎️' : '🧾'}
             title={filter === 'a_servir' ? 'Rien à servir' : 'Aucune commande en cours'}
             subtitle="Les commandes s’ouvrent depuis le plan de salle."
           />
@@ -85,7 +89,8 @@ function OrderCard({ order, now, currency, onPress }: OrderCardProps) {
       <View style={[styles.side, { backgroundColor: st.color }]} />
       <View style={styles.cardBody}>
         <View style={styles.cardTop}>
-          <Text style={styles.cardTitle}>{order.label}</Text>
+          <Emoji3D emoji={counts.pret ? '🛎️' : counts.brouillon ? '✏️' : counts.envoye + counts.en_preparation ? '🔥' : '🍽️'} size={28} />
+          <Text style={[styles.cardTitle, styles.flex]}>{order.label}</Text>
           <Text style={styles.cardTotal}>{formatPrice(orderTotal(order), currency)}</Text>
         </View>
         <View style={styles.cardMeta}>
@@ -127,7 +132,8 @@ const styles = StyleSheet.create({
   side: { width: 6 },
   cardBody: { flex: 1, padding: 14, gap: 8 },
   pressed: { opacity: 0.8 },
-  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  flex: { flex: 1 },
   cardTitle: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 21, color: colors.text },
   cardTotal: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 19, color: colors.text },
   cardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },

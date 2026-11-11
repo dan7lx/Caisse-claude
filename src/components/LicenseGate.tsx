@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { licenseStatus, type LicenseStatus } from '../license/license';
 import { useNow, useStore } from '../store/StoreProvider';
 import { colors, fonts } from '../theme';
+import { Emoji3D } from './Emoji3D';
 import { JoinTeamForm } from './JoinTeamForm';
 import { formatLongDate, PaymentCalendar } from './PaymentCalendar';
 import { SubscriptionPanel } from './SubscriptionPanel';
@@ -37,25 +38,34 @@ function LockScreen({ status }: { status: LicenseStatus }) {
   const insets = useSafeAreaInsets();
   const [joining, setJoining] = useState(invite !== null);
   const expired = status.plan === 'mensuel' && status.dueDate !== null;
+  const demoOver = !expired && status.demoUsed;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 40 }]}>
       <View style={styles.brand}>
-        <View style={styles.logo}>
-          <Ionicons name="restaurant" size={30} color={colors.gold} />
-        </View>
+        {state.settings.logo ? (
+          <Image source={{ uri: state.settings.logo }} style={styles.logoImage} accessibilityLabel="Logo du restaurant" />
+        ) : (
+          <View style={styles.logo}>
+            <Emoji3D emoji="🍽️" size={46} />
+          </View>
+        )}
         <Text style={styles.brandName}>Caisse Resto</Text>
         <Text style={styles.restaurant}>{state.settings.restaurantName}</Text>
       </View>
 
-      <View style={[styles.alert, expired ? styles.alertDanger : styles.alertInfo]}>
-        <Ionicons name={expired ? 'lock-closed' : 'sparkles'} size={22} color={expired ? '#F2A39B' : colors.gold} />
+      <View style={[styles.alert, expired || demoOver ? styles.alertDanger : styles.alertInfo]}>
+        <Emoji3D emoji={expired ? '🔒' : demoOver ? '⌛' : '✨'} size={34} />
         <View style={styles.flex}>
-          <Text style={styles.alertTitle}>{expired ? 'Application bloquée' : 'Activez votre abonnement'}</Text>
+          <Text style={styles.alertTitle}>
+            {expired ? 'Application bloquée' : demoOver ? 'Fin du mode démo' : 'Activez votre abonnement'}
+          </Text>
           <Text style={styles.alertText}>
             {expired
               ? `Le paiement dû le ${formatLongDate(status.dueDate ?? Date.now())} n’a pas été effectué. L’accès reprend dès l’activation.`
-              : 'Choisissez une formule pour utiliser Caisse Resto dans votre restaurant.'}
+              : demoOver
+                ? 'Vos 24 h d’essai gratuit sont terminées. Choisissez une formule et effectuez le paiement pour continuer.'
+                : 'Choisissez une formule, ou essayez gratuitement 24 h avec le mode démo.'}
           </Text>
         </View>
       </View>
@@ -100,7 +110,7 @@ function ReminderModal({ status, now }: { status: LicenseStatus; now: number }) 
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
           <View style={styles.sheetHead}>
-            <Ionicons name="alarm" size={26} color={colors.ready} />
+            <Emoji3D emoji="⏰" size={36} />
             <Text style={styles.sheetTitle}>Rappel de paiement</Text>
           </View>
           <ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetScrollBody}>
@@ -144,6 +154,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  logoImage: { width: 84, height: 84, borderRadius: 22, borderWidth: 1.5, borderColor: colors.gold },
   brandName: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 34, color: colors.gold, letterSpacing: 0.5 },
   restaurant: { fontFamily: fonts.displayItalic, fontVariant: ['lining-nums'], fontSize: 17, color: colors.onDarkMuted },
   alert: { flexDirection: 'row', gap: 12, padding: 16, borderRadius: 16, borderWidth: 1 },

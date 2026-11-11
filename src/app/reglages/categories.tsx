@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { EmojiPicker } from '../../components/EmojiPicker';
 import { ManagerGate } from '../../components/ManagerGate';
 import {
   Button,
@@ -32,6 +33,7 @@ function CategoriesScreen() {
       name: '',
       station: 'cuisine',
       color: categoryPalette[state.categories.length % categoryPalette.length],
+      emoji: '🍽️',
     });
   };
 
@@ -64,8 +66,7 @@ function CategoriesScreen() {
               key={c.id}
               title={c.name}
               subtitle={`${stationLabel[c.station]} · ${itemCount(c.id)} article(s)`}
-              icon={c.station === 'bar' ? 'wine-outline' : 'restaurant-outline'}
-              iconColor={c.color}
+              emoji={c.emoji}
               onPress={() => {
                 setIsNew(false);
                 setDraft(c);
@@ -111,6 +112,7 @@ function CategoriesScreen() {
       >
         {draft ? (
           <>
+            <EmojiPicker value={draft.emoji} onChange={(emoji) => setDraft({ ...draft, emoji })} />
             <Field label="Nom" value={draft.name} onChangeText={(name) => setDraft({ ...draft, name })} placeholder="ex : Plats" />
             <Text style={styles.label}>Envoyer vers</Text>
             <Segmented<Station>

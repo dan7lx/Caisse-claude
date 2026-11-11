@@ -1,6 +1,7 @@
 import { createDemoData, createEmptyData, uid } from './defaults';
 import type { Op } from './ops';
 import type {
+  Billing,
   Category,
   License,
   LineStatus,
@@ -25,12 +26,13 @@ export const createOrder = (id: string, tableId: string | null, label: string, s
   at: Date.now(),
 });
 
-export const addItem = (orderId: string, item: MenuItem, station: Station): Op => ({
+export const addItem = (orderId: string, item: MenuItem, station: Station, note = ''): Op => ({
   t: 'addItem',
   orderId,
   lineId: uid(),
   item,
   station,
+  note,
 });
 
 export const changeQty = (orderId: string, lineId: string, delta: number): Op => ({
@@ -86,6 +88,7 @@ export const moveCategory = (id: string, direction: -1 | 1): Op => ({ t: 'moveCa
 
 export const upsertItem = (item: MenuItem): Op => ({ t: 'upsertItem', item });
 export const deleteItem = (id: string): Op => ({ t: 'deleteItem', id });
+export const moveItem = (id: string, direction: -1 | 1): Op => ({ t: 'moveItem', id, direction });
 export const setItemAvailable = (id: string, available: boolean): Op => ({
   t: 'setItemAvailable',
   id,
@@ -96,13 +99,19 @@ export const addServer = (name: string): Op => ({ t: 'addServer', name });
 export const renameServer = (oldName: string, newName: string): Op => ({ t: 'renameServer', oldName, newName });
 export const removeServer = (name: string): Op => ({ t: 'removeServer', name });
 
-export const resetDemo = (): Op => ({ t: 'replaceData', data: createDemoData() });
+/** Recharge la carte et la salle de démonstration en gardant l'identité du restaurant. */
+export const resetDemo = (settings: Settings): Op => ({ t: 'replaceData', data: { ...createDemoData(), settings } });
 export const wipeAll = (settings: Settings, servers: string[]): Op => ({
   t: 'replaceData',
   data: createEmptyData(settings, servers),
 });
 
-export const setManagerPin = (hash: string | null): Op => ({ t: 'setManagerPin', hash });
+export const setManagerPin = (hash: string | null, length: number | null = null): Op => ({
+  t: 'setManagerPin',
+  hash,
+  length,
+});
 export const setSecurity = (patch: Partial<Security>): Op => ({ t: 'setSecurity', patch });
 export const setLicense = (license: License): Op => ({ t: 'setLicense', license });
 export const setPaymentLinks = (links: PaymentLinks): Op => ({ t: 'setPaymentLinks', links });
+export const setBilling = (billing: Billing): Op => ({ t: 'setBilling', billing });

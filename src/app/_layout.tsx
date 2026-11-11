@@ -9,6 +9,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 
 import { LicenseGate } from '../components/LicenseGate';
+import { ToastProvider } from '../components/Toast';
 import { StoreProvider } from '../store/StoreProvider';
 import { colors, headerStyle } from '../theme';
 
@@ -22,18 +23,22 @@ export default function RootLayout() {
 
   return (
     <StoreProvider>
-      <StatusBar style="light" />
-      <LicenseGate>
-        <Stack
-          screenOptions={{
-            ...headerStyle,
-            headerBackTitle: 'Retour',
-            contentStyle: { backgroundColor: colors.bg },
-          }}
-        >
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
-      </LicenseGate>
+      <ToastProvider>
+        <StatusBar style="light" />
+        <LicenseGate>
+          <Stack
+            screenOptions={{
+              ...headerStyle,
+              headerBackTitle: 'Retour',
+              contentStyle: { backgroundColor: colors.bg },
+              animation: 'slide_from_right',
+              animationDuration: 220,
+            }}
+          >
+            <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'fade' }} />
+          </Stack>
+        </LicenseGate>
+      </ToastProvider>
     </StoreProvider>
   );
 }

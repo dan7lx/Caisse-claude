@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
+import { Emoji3D } from '../../components/Emoji3D';
+import { useToast } from '../../components/Toast';
 import { Button, Empty, SectionTitle, Segmented } from '../../components/ui';
 import { setLinesStatus } from '../../store/actions';
 import { kitchenTickets, type Ticket } from '../../store/selectors';
@@ -9,6 +11,7 @@ import { useNow, useStore } from '../../store/StoreProvider';
 import type { LineStatus, OrderLine, Station } from '../../store/types';
 import { colors, fonts, lineStatusStyle } from '../../theme';
 import { formatElapsed, formatTime } from '../../utils/format';
+import { haptic } from '../../utils/haptics';
 
 /** Statut suivant quand on touche une ligne en cuisine / au bar. */
 const NEXT: Partial<Record<LineStatus, LineStatus>> = {
@@ -31,14 +34,25 @@ export default function KitchenScreen() {
   const { width } = useWindowDimensions();
   const [station, setStation] = useState<Station>('cuisine');
 
-  const kitchen = kitchenTickets(state, 'cuisine', now);
-  const bar = kitchenTickets(state, 'bar', now);
+  const toast = useToast();
+  const kitchen = useMemo(() => kitchenTickets(state, 'cuisine', now), [state, now]);
+  const bar = useMemo(() => kitchenTickets(state, 'bar', now), [state, now]);
+  // Emoji de chaque article (ou de sa catégorie) pour illustrer les tickets.
+  const emojiOf = useMemo(() => {
+    const cat = new Map(state.categories.map((c) => [c.id, c.emoji]));
+    return new Map(state.items.map((i) => [i.id, i.emoji || cat.get(i.categoryId) || '🍽️']));
+  }, [state.items, state.categories]);
   const { active, done } = station === 'cuisine' ? kitchen : bar;
   const columns = width >= 1100 ? 3 : width >= 700 ? 2 : 1;
   const alertMs = state.settings.alertMinutes * 60000;
 
-  const update = (ticket: Ticket, lines: OrderLine[], status: LineStatus) =>
+  const update = (ticket: Ticket, lines: OrderLine[], status: LineStatus) => {
+    if (status === 'pret') {
+      haptic.success();
+      toast(`${ticket.order.label} : prêt à servir`, '🛎️');
+    } else haptic.tap();
     dispatch(setLinesStatus(ticket.order.id, lines.map((l) => l.id), status));
+  };
 
   return (
     <View style={styles.screen}>
@@ -47,8 +61,8 @@ export default function KitchenScreen() {
           value={station}
           onChange={setStation}
           options={[
-            { value: 'cuisine', label: `Cuisine (${kitchen.active.length})` },
-            { value: 'bar', label: `Bar (${bar.active.length})` },
+            { value: 'cuisine', label: `🔥 Cuisine (${kitchen.active.length})` },
+            { value: 'bar', label: `🍸 Bar (${bar.active.length})` },
           ]}
         />
       </View>
@@ -56,6 +70,7 @@ export default function KitchenScreen() {
         {active.length === 0 ? (
           <Empty
             icon={station === 'cuisine' ? 'restaurant-outline' : 'wine-outline'}
+            emoji={station === 'cuisine' ? '🧑‍🍳' : '🍸'}
             title="Aucun ticket en attente"
             subtitle="Les commandes envoyées par les serveurs apparaîtront ici."
           />
@@ -94,6 +109,7 @@ export default function KitchenScreen() {
                         style={({ pressed }) => [styles.line, pressed && styles.pressed]}
                       >
                         <Ionicons name={LINE_ICON[l.status]} size={24} color={st.color} />
+                        <Emoji3D emoji={emojiOf.get(l.itemId) ?? '🍽️'} size={30} />
                         <View style={styles.flex}>
                           <Text style={[styles.lineText, (l.status === 'pret' || l.status === 'servi') && styles.lineDone]}>
                             <Text style={styles.lineQty}>{l.qty} × </Text>

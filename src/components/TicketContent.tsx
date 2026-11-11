@@ -7,6 +7,7 @@ import { useStore } from '../store/StoreProvider';
 import type { Order, OrderLine } from '../store/types';
 import { colors, fonts, lineStatusStyle, stationLabel } from '../theme';
 import { formatPrice, formatTime } from '../utils/format';
+import { Emoji3D } from './Emoji3D';
 import { Badge, Button, confirm, IconButton, SectionTitle, Stepper } from './ui';
 
 interface Props {
@@ -28,6 +29,11 @@ export function TicketContent({ order, onNote, onSend, onPay, onCancel }: Props)
   const readyLines = sent.filter((l) => l.status === 'pret');
   const total = orderTotal(order);
   const batches = Array.from(new Set(sent.map((l) => l.batch ?? 0))).sort((a, b) => a - b);
+  const categoryEmoji = new Map(state.categories.map((c) => [c.id, c.emoji]));
+  const emojiOf = (itemId: string) => {
+    const item = state.items.find((i) => i.id === itemId);
+    return item ? item.emoji || categoryEmoji.get(item.categoryId) || '🍽️' : '🍽️';
+  };
 
   return (
     <View style={styles.wrap}>
@@ -45,7 +51,10 @@ export function TicketContent({ order, onNote, onSend, onPay, onCancel }: Props)
       </View>
 
       {order.lines.length === 0 ? (
-        <Text style={styles.empty}>Aucun article. Touchez les plats de la carte pour les ajouter.</Text>
+        <View style={styles.emptyBox}>
+          <Emoji3D emoji="🍽️" size={48} />
+          <Text style={styles.empty}>Aucun article. Touchez les plats de la carte pour les ajouter.</Text>
+        </View>
       ) : null}
 
       {drafts.length ? (
@@ -53,6 +62,7 @@ export function TicketContent({ order, onNote, onSend, onPay, onCancel }: Props)
           <SectionTitle>À envoyer</SectionTitle>
           {drafts.map((l) => (
             <View key={l.id} style={[styles.line, styles.lineDraft]}>
+              <Emoji3D emoji={emojiOf(l.itemId)} size={34} />
               <View style={styles.flex}>
                 <Text style={styles.lineName}>{l.name}</Text>
                 {l.note ? <Text style={styles.lineNote}>« {l.note} »</Text> : null}
@@ -85,6 +95,7 @@ export function TicketContent({ order, onNote, onSend, onPay, onCancel }: Props)
               const st = lineStatusStyle[l.status];
               return (
                 <View key={l.id} style={[styles.line, l.status === 'servi' && styles.lineServed]}>
+                  <Emoji3D emoji={emojiOf(l.itemId)} size={30} />
                   <View style={styles.flex}>
                     <Text style={styles.lineName}>
                       {l.qty} × {l.name}
@@ -154,6 +165,7 @@ const styles = StyleSheet.create({
   title: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 26, color: colors.text },
   meta: { fontSize: 12, color: colors.muted, marginTop: 2 },
   guests: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  emptyBox: { alignItems: 'center', gap: 6, paddingVertical: 8 },
   empty: { color: colors.muted, fontStyle: 'italic', paddingVertical: 12 },
   line: {
     flexDirection: 'row',

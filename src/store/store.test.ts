@@ -5,6 +5,8 @@ import { describe, it } from 'node:test';
 import { canCreateLobby, canManage, identifyCode } from '../license/access';
 import {
   applyCode,
+  formatCountdown,
+  isDemoCode,
   extendOneMonth,
   firstOfMonth,
   hashManagerPin,
@@ -23,6 +25,7 @@ import {
   createOrder,
   deleteCategory,
   moveCategory,
+  moveItem,
   payOrder,
   removeIfEmpty,
   removeServer,
@@ -32,7 +35,7 @@ import {
   setManagerPin,
   setSecurity,
 } from './actions';
-import { createInitialState, migrate } from './defaults';
+import { createInitialState, migrate, normalize } from './defaults';
 import { reduce, reduceAll, type Op } from './ops';
 import { kitchenTickets, openOrderForTable, orderTotal, salesStats, tableState } from './selectors';
 import type { AppState, License } from './types';
@@ -175,7 +178,8 @@ describe('codes gérant et administrateur', () => {
 
   it('vérifie le code gérant et les droits', () => {
     let s = createInitialState();
-    s = reduce(s, setManagerPin(hashManagerPin('4321', s.license.id)));
+    s = reduce(s, setManagerPin(hashManagerPin('4321', s.license.id), 4));
+    assert.equal(s.security.managerPinLength, 4);
     assert.equal(identifyCode(s, '4321'), 'manager');
     assert.equal(identifyCode(s, '1234'), null);
     assert.equal(identifyCode(s, '197905'), 'admin');
@@ -190,7 +194,7 @@ describe('codes gérant et administrateur', () => {
 });
 
 describe('abonnement', () => {
-  const lic = (): License => ({ id: 'K7M2-9QXA', plan: 'aucun', paidUntil: null, activatedAt: null });
+  const lic = (): License => ({ id: 'K7M2-9QXA', plan: 'aucun', paidUntil: null, activatedAt: null, demoStartedAt: null });
   const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).getTime();
 
   it('bloque sans abonnement', () => {
@@ -231,6 +235,84 @@ describe('abonnement', () => {
     const life = applyCode(lic(), makeActivationCode('K7M2-9QXA', { plan: 'vie' }));
     assert.equal(life.kind === 'activation' && life.license.plan, 'vie');
     assert.equal(applyCode(lic(), 'M202613-ABCDEF').kind, 'invalid');
+  });
+});
+
+describe('mode démo', () => {
+  const lic = (): License => ({ id: 'K7M2-9QXA', plan: 'aucun', paidUntil: null, activatedAt: null, demoStartedAt: null });
+  const t0 = new Date(2026, 10, 10, 9, 0).getTime();
+  const H = 3600_000;
+
+  it('le code 6666 démarre 24 h de démo, puis bloque', () => {
+    assert.equal(isDemoCode('6666'), true);
+    assert.equal(isDemoCode('6667'), false);
+    const r = applyCode(lic(), '6666', t0);
+    assert.equal(r.kind, 'demo');
+    const l = r.kind === 'demo' ? r.license : lic();
+    assert.equal(licenseStatus(l, t0 + 23 * H).active, true);
+    assert.equal(licenseStatus(l, t0 + 23 * H).demo, true);
+    assert.equal(licenseStatus(l, t0 + 24 * H).active, false);
+    assert.equal(licenseStatus(l, t0 + 24 * H).demoUsed, true);
+  });
+
+  it('la démo ne peut être utilisée qu’une fois', () => {
+    const r = applyCode(lic(), '6666', t0);
+    const l = r.kind === 'demo' ? r.license : lic();
+    assert.equal(applyCode(l, '6666', t0 + 30 * H).kind, 'invalid');
+  });
+
+  it('un paiement pendant la démo prend le relais', () => {
+    const r = applyCode(lic(), '6666', t0);
+    const demo = r.kind === 'demo' ? r.license : lic();
+    const paid = applyCode(demo, makeActivationCode('K7M2-9QXA', { plan: 'vie' }), t0 + H);
+    assert.equal(paid.kind === 'activation' && licenseStatus(paid.license, t0 + 48 * H).active, true);
+    assert.equal(paid.kind === 'activation' && licenseStatus(paid.license, t0 + 2 * H).demo, false);
+  });
+
+  it('affiche le minuteur', () => {
+    assert.equal(formatCountdown(24 * H), '24:00:00');
+    assert.equal(formatCountdown(65_000), '00:01:05');
+  });
+});
+
+describe('carte complète', () => {
+  it('ajoute un article avec un choix et regroupe les choix identiques', () => {
+    const { s } = setup();
+    const entrecote = s.items.find((i) => i.name === 'Entrecôte frites')!;
+    assert.ok(entrecote.choices.includes('Saignant'));
+    const s2 = reduceAll(s, [
+      addItem('o1', entrecote, 'cuisine', 'Saignant'),
+      addItem('o1', entrecote, 'cuisine', 'Saignant'),
+      addItem('o1', entrecote, 'cuisine', 'À point'),
+    ]);
+    assert.deepEqual(
+      order(s2).lines.map((l) => [l.note, l.qty]),
+      [
+        ['Saignant', 2],
+        ['À point', 1],
+      ],
+    );
+  });
+
+  it('réordonne un article à l’intérieur de sa catégorie', () => {
+    const s = createInitialState();
+    const plats = s.items.filter((i) => i.categoryId === s.categories[1].id);
+    const s2 = reduce(s, moveItem(plats[1].id, -1));
+    const after = s2.items.filter((i) => i.categoryId === s.categories[1].id);
+    assert.deepEqual([after[0].id, after[1].id], [plats[1].id, plats[0].id]);
+    // Le premier article ne peut pas monter dans la catégorie précédente.
+    assert.equal(reduce(s, moveItem(plats[0].id, -1)), s);
+  });
+
+  it('complète les données d’une version précédente', () => {
+    const old = createInitialState() as unknown as Record<string, unknown>;
+    const cats = (old.categories as Record<string, unknown>[]).map(({ emoji: _e, ...c }) => c);
+    const items = (old.items as Record<string, unknown>[]).map(({ emoji: _e, choices: _c, allergens: _a, ...i }) => i);
+    const n = normalize({ ...old, categories: cats, items, billing: undefined } as unknown as AppState);
+    assert.equal(n.categories[0].emoji, '🥗');
+    assert.deepEqual(n.items[0].choices, []);
+    assert.equal(n.billing.iban, 'BE71650156242169');
+    assert.equal(n.settings.autoLockMinutes, 10);
   });
 });
 

@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useMemo } from 'react';
 import { Tabs } from 'expo-router';
 import type { ColorValue } from 'react-native';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { HeaderTitle, TeamButton } from '../../components/HeaderParts';
-import { ReminderBanner } from '../../components/ReminderBanner';
+import { hasTopBanner, ReminderBanner } from '../../components/ReminderBanner';
 import { licenseStatus } from '../../license/license';
 import { kitchenTickets, openOrders } from '../../store/selectors';
 import { useNow, useStore } from '../../store/StoreProvider';
@@ -24,10 +25,17 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const now = useNow(15000);
   const kitchenOnly = device.role === 'cuisine';
-  const readyToServe = openOrders(state).filter((o) => o.lines.some((l) => l.status === 'pret')).length;
-  const kitchenCount = kitchenTickets(state, 'cuisine').active.length + kitchenTickets(state, 'bar').active.length;
-  // Le bandeau de rappel occupe déjà la zone de la barre d'état.
-  const bannerVisible = licenseStatus(state.license, now).inReminderWindow;
+  // Badges des onglets, recalculés seulement quand les commandes changent.
+  const { readyToServe, kitchenCount } = useMemo(() => {
+    const s = { ...state, orders: state.orders };
+    return {
+      readyToServe: openOrders(s).filter((o) => o.lines.some((l) => l.status === 'pret')).length,
+      kitchenCount: kitchenTickets(s, 'cuisine').active.length + kitchenTickets(s, 'bar').active.length,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.orders]);
+  // Le bandeau (démo ou rappel) occupe déjà la zone de la barre d'état.
+  const bannerVisible = hasTopBanner(licenseStatus(state.license, now));
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.ink }}>
@@ -50,7 +58,7 @@ export default function TabsLayout() {
           options={{
             title: 'Salle',
             href: kitchenOnly ? null : undefined,
-            headerTitle: () => <HeaderTitle title={state.settings.restaurantName} subtitle="Plan de salle" />,
+            headerTitle: () => <HeaderTitle title={state.settings.restaurantName} subtitle="Plan de salle" logo={state.settings.logo} />,
             tabBarIcon: tabIcon('grid'),
           }}
         />
