@@ -394,7 +394,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const autoLockMinutes = state?.settings.autoLockMinutes ?? 0;
   const unlocked = session.manager || session.admin;
   useEffect(() => {
-    if (!unlocked || !autoLockMinutes) return;
+    // -1 = « automatique » (géré en quittant la Gestion), 0 = jamais.
+    if (!unlocked || autoLockMinutes <= 0) return;
     const timer = setInterval(() => {
       if (Date.now() - lastActivity.current > autoLockMinutes * 60_000) {
         setSessionState({ manager: false, admin: false });
@@ -425,7 +426,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
     run();
     const timer = setInterval(run, 60_000);
-    return () => clearInterval(timer);
+    const sub = RNAppState.addEventListener('change', (st) => {
+      if (st === 'active') run();
+    });
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+    };
   }, [loaded, dispatch]);
 
   const pendingCount = syncData?.pending.length ?? 0;
@@ -493,7 +500,14 @@ export function useNow(intervalMs = 30000): number {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), intervalMs);
-    return () => clearInterval(timer);
+    // Au retour dans l'application, l'heure est relue tout de suite (blocage, rappel, compte à rebours).
+    const sub = RNAppState.addEventListener('change', (st) => {
+      if (st === 'active') setNow(Date.now());
+    });
+    return () => {
+      clearInterval(timer);
+      sub.remove();
+    };
   }, [intervalMs]);
   return now;
 }

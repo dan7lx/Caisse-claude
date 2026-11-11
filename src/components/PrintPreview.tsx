@@ -100,7 +100,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   logo: { width: 56, height: 56, alignSelf: 'center', marginBottom: 6, borderRadius: 8 },
-  line: { fontFamily: MONO, fontSize: 12, color: '#111', lineHeight: 16 },
+  // Sur le web, les espaces d'alignement des colonnes doivent être conservés.
+  line: { fontFamily: MONO, fontSize: 12, color: '#111', lineHeight: 16, ...(Platform.OS === 'web' ? ({ whiteSpace: 'pre' } as object) : null) },
   bold: { fontWeight: '700' },
   big: { fontSize: 15, lineHeight: 20 },
   center: { textAlign: 'center' },

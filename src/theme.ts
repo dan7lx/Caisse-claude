@@ -1,7 +1,9 @@
 import { Platform } from 'react-native';
 
 import type { TableState } from './store/selectors';
-import type { LineStatus, PaymentMethod, Role, Station } from './store/types';
+import type { LineStatus, Station } from './store/types';
+
+export { paymentLabel, roleEmoji, roleLabel } from './labels';
 
 /** Palette « brasserie de prestige » : noir chaud, or, ivoire et couleurs profondes. */
 export const colors = {
@@ -85,11 +87,6 @@ export const lineStatusStyle: Record<LineStatus, { label: string; color: string;
 
 export const stationLabel: Record<Station, string> = { cuisine: 'Cuisine', bar: 'Bar' };
 
-export const paymentLabel: Record<PaymentMethod, string> = {
-  especes: 'Espèces',
-  carte: 'Carte bancaire',
-  autre: 'Autre',
-};
 
 /** En-têtes sombres et dorés communs à tous les écrans. */
 export const headerStyle = {
@@ -100,5 +97,3 @@ export const headerStyle = {
 };
 
 
-export const roleLabel: Record<Role, string> = { serveur: 'Salle', cuisine: 'Cuisine', bar: 'Bar' };
-export const roleEmoji: Record<Role, string> = { serveur: '🙋', cuisine: '🧑‍🍳', bar: '🍸' };

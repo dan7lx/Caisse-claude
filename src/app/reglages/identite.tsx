@@ -19,6 +19,8 @@ function IdentityScreen() {
   const [slogan, setSlogan] = useState(s.slogan);
   const [address, setAddress] = useState(s.address);
   const [phone, setPhone] = useState(s.phone);
+  const [vatNumber, setVatNumber] = useState(s.vatNumber);
+  const [footer, setFooter] = useState(s.receiptFooter);
   const [loading, setLoading] = useState(false);
 
   const chooseLogo = async () => {
@@ -38,7 +40,20 @@ function IdentityScreen() {
 
   const save = () => {
     if (!name.trim()) return notify('Nom manquant', 'Indiquez le nom du commerce.');
-    dispatch(updateSettings({ restaurantName: name.trim(), slogan: slogan.trim(), address: address.trim(), phone: phone.trim() }));
+    const vat = vatNumber.trim().toUpperCase();
+    if (vat && !/^[A-Z]{2}[0-9A-Z .]{6,14}$/.test(vat)) {
+      return notify('N° de TVA', 'Format attendu : code pays puis numéro, ex. BE 0123.456.789.');
+    }
+    dispatch(
+      updateSettings({
+        restaurantName: name.trim(),
+        slogan: slogan.trim(),
+        address: address.trim(),
+        phone: phone.trim(),
+        vatNumber: vat,
+        receiptFooter: footer.trim(),
+      }),
+    );
     toast('Identité enregistrée', '🏪');
   };
 
@@ -90,6 +105,24 @@ function IdentityScreen() {
         <Field label="Slogan (optionnel)" value={slogan} onChangeText={setSlogan} placeholder="ex : Cuisine maison depuis 1987" />
         <Field label="Adresse" value={address} onChangeText={setAddress} placeholder="ex : 12 rue de la Paix, Bruxelles" />
         <Field label="Téléphone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="ex : 02 123 45 67" />
+        <Field
+          label="N° de TVA de l’entreprise"
+          value={vatNumber}
+          onChangeText={setVatNumber}
+          autoCapitalize="characters"
+          placeholder="ex : BE 0123.456.789"
+          hint="Imprimé sur les tickets de caisse et les rapports."
+        />
+      </Card>
+
+      <SectionTitle>Ticket de caisse</SectionTitle>
+      <Card style={styles.card}>
+        <Field
+          label="Message en bas du ticket"
+          value={footer}
+          onChangeText={setFooter}
+          placeholder="ex : Merci de votre visite et à bientôt !"
+        />
       </Card>
       <Button title="Enregistrer" icon="checkmark" large onPress={save} style={styles.save} />
     </ScrollView>

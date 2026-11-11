@@ -11,6 +11,7 @@ import { Emoji3D } from './Emoji3D';
 import { JoinTeamForm } from './JoinTeamForm';
 import { formatLongDate, PaymentCalendar } from './PaymentCalendar';
 import { SubscriptionPanel } from './SubscriptionPanel';
+import { SupportCard } from './SupportCard';
 import { Button, Card } from './ui';
 
 /** Date locale AAAA-MM-JJ (le rappel est fermé pour la journée). */
@@ -90,6 +91,8 @@ function LockScreen({ status }: { status: LicenseStatus }) {
           />
         </>
       )}
+
+      <SupportCard dark />
 
       {device.lobby ? (
         <Button title="Quitter le lobby de l’équipe" variant="ghost" icon="exit-outline" onPress={leaveLobby} />

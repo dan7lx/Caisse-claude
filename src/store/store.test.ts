@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { canCreateLobby, canManage, identifyCode } from '../license/access';
+import { canCreateLobby, canManage, hashStaffPin, identifyCode, identifyStaff } from '../license/access';
 import {
   applyCode,
   formatCountdown,
@@ -24,8 +24,11 @@ import {
   changeQty,
   createOrder,
   deleteCategory,
+  closeDay,
   moveCategory,
   moveItem,
+  moveOrderTable,
+  setStaff,
   payOrder,
   removeIfEmpty,
   removeServer,
@@ -37,7 +40,20 @@ import {
 } from './actions';
 import { createInitialState, migrate, normalize } from './defaults';
 import { reduce, reduceAll, type Op } from './ops';
-import { kitchenTickets, openOrderForTable, orderTotal, salesStats, tableState } from './selectors';
+import { cleanText, formatRow, toEscPos } from '../print/escpos';
+import { receiptDoc } from '../print/doc';
+import {
+  buildClosure,
+  dayKey,
+  daysToClose,
+  kitchenTickets,
+  openOrderForTable,
+  orderDiscount,
+  orderSubtotal,
+  orderTotal,
+  salesStats,
+  tableState,
+} from './selectors';
 import type { AppState, License } from './types';
 
 function setup() {
@@ -159,13 +175,41 @@ describe('gestion', () => {
     assert.deepEqual([s2.categories[0].id, s2.categories[1].id], [b.id, a.id]);
   });
 
-  it('gère la liste des serveurs', () => {
+  it('gère l’équipe et les postes', () => {
     let s = createInitialState();
-    s = reduceAll(s, [addServer('Julie'), addServer('Julie'), renameServer('Serveur 1', 'Marc')]);
-    assert.equal(s.servers.filter((n) => n === 'Julie').length, 1);
-    assert.ok(s.servers.includes('Marc'));
-    s = reduceAll(s, [removeServer('Marc'), removeServer('Julie'), removeServer('Serveur 2')]);
-    assert.equal(s.servers.length, 1);
+    const names = () => s.staff.map((m) => m.name);
+    s = reduceAll(s, [addServer('Julie', 'bar'), addServer('Julie'), renameServer('Serveur 1', 'Marc')]);
+    assert.equal(names().filter((n) => n === 'Julie').length, 1);
+    assert.equal(s.staff.find((m) => m.name === 'Julie')?.role, 'bar');
+    assert.ok(names().includes('Marc'));
+    s = reduceAll(s, ['Marc', 'Julie', 'Serveur 2', 'Chef', 'Barman'].map((n) => removeServer(n)));
+    assert.equal(s.staff.length, 1);
+  });
+
+  it('code personnel : identifie l’employé et son poste', () => {
+    let s = createInitialState();
+    const chef = s.staff.find((m) => m.role === 'cuisine')!;
+    s = reduce(s, setStaff({ ...chef, pinHash: hashStaffPin('5821', s.license.id), pinLength: 4 }));
+    assert.equal(identifyStaff(s, '5821')?.name, 'Chef');
+    assert.equal(identifyStaff(s, '5821')?.role, 'cuisine');
+    assert.equal(identifyStaff(s, '0000'), undefined);
+  });
+
+  it('reprend l’ancienne liste de serveurs', () => {
+    const old = { ...createInitialState(), servers: ['Paul', 'Léa'] } as unknown as Record<string, unknown>;
+    delete old.staff;
+    const n = normalize(old as unknown as AppState);
+    assert.deepEqual(n.staff.map((m) => [m.name, m.role]), [['Paul', 'serveur'], ['Léa', 'serveur']]);
+  });
+
+  it('change une commande de table, sauf vers une table occupée', () => {
+    const { s, table } = setup();
+    const [, t2, t3] = s.tables;
+    const moved = reduce(s, moveOrderTable('o1', t2.id, 'Table 2'));
+    assert.equal(order(moved).tableId, t2.id);
+    assert.equal(openOrderForTable(moved, table.id), undefined);
+    const busy = reduceAll(moved, [createOrder('o2', t3.id, 'Table 3', 'Marc'), moveOrderTable('o1', t3.id, 'Table 3')]);
+    assert.equal(order(busy).tableId, t2.id);
   });
 });
 
@@ -235,6 +279,70 @@ describe('abonnement', () => {
     const life = applyCode(lic(), makeActivationCode('K7M2-9QXA', { plan: 'vie' }));
     assert.equal(life.kind === 'activation' && life.license.plan, 'vie');
     assert.equal(applyCode(lic(), 'M202613-ABCDEF').kind, 'invalid');
+  });
+});
+
+describe('encaissement : remise, pourboire, monnaie', () => {
+  it('applique la remise, enregistre le pourboire et les espèces reçues', () => {
+    const { s, burger } = setup();
+    const s2 = reduceAll(s, [
+      addItem('o1', burger, 'cuisine'),
+      addItem('o1', burger, 'cuisine'),
+      payOrder('o1', 'especes', { discountPct: 10, tip: 200, cashReceived: 5000 }),
+    ]);
+    const o = order(s2);
+    assert.equal(orderSubtotal(o), 3300);
+    assert.equal(orderDiscount(o), 330);
+    assert.equal(orderTotal(o), 2970);
+    const st = salesStats(s2.orders);
+    assert.equal(st.revenue, 2970);
+    assert.equal(st.tips, 200);
+    assert.equal(st.discounts, 330);
+    assert.equal(st.byPayment.especes, 3170); // encaissé = total + pourboire
+  });
+
+  it('imprime un ticket de caisse complet', () => {
+    const { s, burger } = setup();
+    const s2 = reduceAll(s, [
+      { t: 'updateSettings', patch: { vatNumber: 'BE 0123.456.789' } },
+      addItem('o1', burger, 'cuisine'),
+      payOrder('o1', 'especes', { tip: 150, cashReceived: 2000 }),
+    ]);
+    const doc = receiptDoc(s2, order(s2));
+    const text = doc.lines.map((l) => ('text' in l ? l.text : 'left' in l ? `${l.left} ${l.right}` : '')).join('\n');
+    assert.match(text, /TICKET DE CAISSE/);
+    assert.match(text, /TVA BE 0123\.456\.789/);
+    assert.match(text, /1 x Burger maison/);
+    assert.match(text, /Pourboire/);
+    assert.match(text, /Rendu 2,00/); // 20,00 reçus − 16,50 − 1,50 de pourboire
+  });
+
+  it('met en forme et encode pour une imprimante thermique', () => {
+    assert.deepEqual(formatRow('Total', '12,50 €', 20), ['Total        12,50 €']);
+    assert.equal(formatRow('Un très long nom de plat maison', '9,00 €', 20).length, 2);
+    const bytes = toEscPos({ title: 't', lines: [{ k: 'text', text: 'é €' }] }, 58);
+    assert.ok(bytes.includes(0x82)); // é en PC858
+    assert.ok(bytes.includes(0xd5)); // € en PC858
+    assert.equal(cleanText('Crème brûlée €', true), 'Creme brulee EUR');
+  });
+});
+
+describe('clôture automatique à minuit', () => {
+  it('clôture les jours passés une seule fois et remet le compteur à zéro', () => {
+    const { s, burger } = setup();
+    const yesterday = new Date(2026, 10, 10, 21, 0).getTime();
+    const now = new Date(2026, 10, 11, 0, 0, 30).getTime();
+    let st = reduceAll(s, [addItem('o1', burger, 'cuisine'), { t: 'payOrder', orderId: 'o1', payment: 'carte', at: yesterday, tip: 100 }]);
+    assert.deepEqual(daysToClose(st, now), ['2026-11-10']);
+    const z = buildClosure(st, '2026-11-10', now);
+    assert.equal(z.revenue, 1650);
+    assert.equal(z.tips, 100);
+    st = reduceAll(st, [closeDay(z, true), closeDay(z, true)]);
+    assert.equal(st.closures.length, 1);
+    assert.equal(st.orderCounter, 0);
+    assert.deepEqual(daysToClose(st, now), []);
+    // Le chiffre du jour repart de zéro.
+    assert.equal(salesStats(st.orders.filter((o) => dayKey(o.paidAt ?? 0) === dayKey(now))).revenue, 0);
   });
 });
 

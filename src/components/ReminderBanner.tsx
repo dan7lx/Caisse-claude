@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { formatCountdown, licenseStatus, type LicenseStatus } from '../license/license';
 import { useNow, useStore } from '../store/StoreProvider';
@@ -24,6 +25,7 @@ function humanCountdown(ms: number): string {
 export function StatusStrip() {
   const { state } = useStore();
   const router = useRouter();
+  const narrow = useWindowDimensions().width < 370;
   const coarse = licenseStatus(state.license);
   // Mis à jour chaque seconde pendant l'essai, mais seulement dans ce bandeau.
   const now = useNow(coarse.demo ? 1000 : 15000);
@@ -41,12 +43,15 @@ export function StatusStrip() {
       onPress={() => router.push('/abonnement')}
       style={({ pressed }) => [styles.strip, urgent && styles.urgent, pressed && { opacity: 0.9 }]}
     >
-      <Emoji3D emoji={demo ? '🎁' : '⏰'} size={34} />
+      <Emoji3D emoji={demo ? '🎁' : '⏰'} size={narrow ? 28 : 34} />
       <View style={styles.flex}>
         {demo ? (
           <>
-            <Text style={styles.title} numberOfLines={1}>
-              Essai gratuit : encore <Text style={styles.timer}>{humanCountdown(remaining)}</Text>
+            <Text style={styles.kicker} numberOfLines={1}>
+              ESSAI GRATUIT · TEMPS RESTANT
+            </Text>
+            <Text style={styles.timer} numberOfLines={1} accessibilityLabel={`Essai gratuit : encore ${humanCountdown(remaining)}`}>
+              {humanCountdown(remaining)}
             </Text>
             <Text style={styles.text} numberOfLines={2}>
               À la fin de l’essai, l’application sera bloquée jusqu’au paiement.
@@ -64,9 +69,13 @@ export function StatusStrip() {
           </>
         )}
       </View>
-      <View style={styles.cta}>
-        <Text style={styles.ctaText}>{demo ? 'S’abonner' : 'Payer'}</Text>
-      </View>
+      {narrow ? (
+        <Ionicons name="chevron-forward" size={22} color={colors.gold} />
+      ) : (
+        <View style={styles.cta}>
+          <Text style={styles.ctaText}>{demo ? 'S’abonner' : 'Payer'}</Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -85,7 +94,8 @@ const styles = StyleSheet.create({
   urgent: { backgroundColor: '#3A1714', borderTopColor: colors.danger },
   flex: { flex: 1 },
   title: { color: colors.onDark, fontWeight: '800', fontSize: 14 },
-  timer: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums', 'tabular-nums'], color: colors.gold },
+  kicker: { color: colors.gold, fontWeight: '800', fontSize: 11, letterSpacing: 1 },
+  timer: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums', 'tabular-nums'], color: colors.onDark, fontSize: 20 },
   text: { color: colors.onDarkMuted, fontSize: 12, marginTop: 1 },
   cta: { backgroundColor: colors.gold, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
   ctaText: { color: colors.ink, fontWeight: '900', fontSize: 13 },

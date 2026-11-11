@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Emoji3D } from '../../components/Emoji3D';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { useToast } from '../../components/Toast';
-import { Button, Empty, SectionTitle, Segmented } from '../../components/ui';
+import { Button, Empty, IconButton, notify, SectionTitle, Segmented } from '../../components/ui';
+import { printDoc, useBluetoothPrinter } from '../../print';
+import { kitchenDoc } from '../../print/doc';
 import { setLinesStatus } from '../../store/actions';
 import { kitchenTickets, type Ticket } from '../../store/selectors';
 import { useNow, useStore } from '../../store/StoreProvider';
@@ -49,6 +51,29 @@ export default function KitchenScreen() {
   const { active, done } = station === 'cuisine' ? kitchen : bar;
   const columns = width >= 1100 ? 3 : width >= 700 ? 2 : 1;
   const alertMs = state.settings.alertMinutes * 60000;
+
+  const printTicket = (t: Ticket) => {
+    printDoc(kitchenDoc(t), device.printer).catch((e: unknown) =>
+      notify('Impression', e instanceof Error ? e.message : 'Impression impossible.'),
+    );
+  };
+
+  // Impression automatique des nouveaux bons (imprimante Bluetooth connectée sur cet appareil).
+  const printed = useRef<Set<string> | null>(null);
+  const btName = useBluetoothPrinter();
+  useEffect(() => {
+    const visible = [...kitchen.active, ...bar.active].filter((t) => !fixed || t.station === fixed);
+    if (printed.current === null) {
+      printed.current = new Set(visible.map((t) => t.key)); // les tickets déjà présents ne sont pas réimprimés
+      return;
+    }
+    const fresh = visible.filter((t) => !printed.current?.has(t.key));
+    fresh.forEach((t) => printed.current?.add(t.key));
+    if (!device.printer.autoPrintKitchen || !btName) return;
+    (async () => {
+      for (const t of fresh) await printDoc(kitchenDoc(t), device.printer).catch(() => {});
+    })();
+  }, [kitchen.active, bar.active, fixed, device.printer, btName]);
 
   const update = (ticket: Ticket, lines: OrderLine[], status: LineStatus) => {
     if (status === 'pret') {
@@ -105,6 +130,7 @@ export default function KitchenScreen() {
                       <Ionicons name="time-outline" size={16} color="#FFFFFF" />
                       <Text style={styles.timerText}>{formatElapsed(elapsed)}</Text>
                     </View>
+                    <IconButton icon="print-outline" label={`Imprimer le bon ${t.order.label}`} color={colors.gold} onPress={() => printTicket(t)} />
                   </View>
                   {t.lines.map((l) => {
                     const st = lineStatusStyle[l.status];

@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { formatLongDate, PaymentCalendar } from '../components/PaymentCalendar';
+import { formatLongDate, LiveClock, PaymentCalendar } from '../components/PaymentCalendar';
 import { SubscriptionPanel } from '../components/SubscriptionPanel';
 import { Card, Notice, SectionTitle } from '../components/ui';
 import { formatCountdown, licenseStatus } from '../license/license';
@@ -51,6 +51,7 @@ export default function SubscriptionScreen() {
         <>
           <SectionTitle>Calendrier des paiements</SectionTitle>
           <Card>
+            <LiveClock />
             <PaymentCalendar status={status} now={now} />
             <Text style={styles.calendarNote}>
               Le mois est dû le 1er. Un rappel s’affiche 5 jours avant ; le blocage est automatique dès l’échéance si le

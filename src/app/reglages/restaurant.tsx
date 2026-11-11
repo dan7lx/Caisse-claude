@@ -11,6 +11,7 @@ import { useStore } from '../../store/StoreProvider';
 import { colors } from '../../theme';
 
 const AUTO_LOCK = [
+  { value: -1, label: 'Automatique' },
   { value: 0, label: 'Jamais' },
   { value: 2, label: '2 min' },
   { value: 5, label: '5 min' },
@@ -91,7 +92,11 @@ function PreferencesScreen() {
             <Chip key={o.value} label={o.label} selected={autoLock === o.value} color={colors.goldDeep} onPress={() => setAutoLock(o.value)} />
           ))}
         </View>
-        <Text style={styles.hint}>Sans activité pendant ce délai, le code gérant est redemandé.</Text>
+        <Text style={styles.hint}>
+          {autoLock === -1
+            ? 'Automatique : dès qu’on quitte la Gestion (autre onglet, application fermée), le code gérant est redemandé pour y revenir.'
+            : 'Sans activité pendant ce délai, le code gérant est redemandé.'}
+        </Text>
       </Card>
 
       <Button title="Enregistrer" icon="checkmark" large onPress={save} style={styles.save} />

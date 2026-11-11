@@ -1,6 +1,6 @@
 import { includedVat, orderDiscount, orderSubtotal, orderTotal, salesStats, type Ticket } from '../store/selectors';
 import type { AppState, DailyClosure, Order, OrderLine } from '../store/types';
-import { paymentLabel } from '../theme';
+import { paymentLabel } from '../labels';
 import { formatPrice } from '../utils/format';
 
 /** Ligne d'un document imprimé (ticket, bon cuisine, rapport). */

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBar, Tabs } from 'expo-router/tabs';
 import { useCallback, useMemo } from 'react';
 import type { ColorValue } from 'react-native';
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { StatusStrip } from '../../components/ReminderBanner';
@@ -21,6 +21,8 @@ function tabIcon(name: IoniconName) {
 export default function TabsLayout() {
   const { state, device, session, setSession } = useStore();
   const insets = useSafeAreaInsets();
+  // Très petits écrans (iPhone SE…) : libellés plus compacts pour qu'aucun ne soit coupé.
+  const narrow = useWindowDimensions().width < 360;
   // Dans un lobby, chaque employé ne voit que son poste ; hors lobby, tout est accessible.
   const post = device.lobby ? device.role : null;
   const showRoom = post === null || post === 'serveur';
@@ -60,7 +62,7 @@ export default function TabsLayout() {
           tabBarStyle: { backgroundColor: colors.ink, borderTopColor: colors.ink3, height: 60 + insets.bottom },
           tabBarActiveTintColor: colors.gold,
           tabBarInactiveTintColor: colors.onDarkMuted,
-          tabBarLabelStyle: { fontWeight: '700', fontSize: 11, letterSpacing: 0.3 },
+          tabBarLabelStyle: { fontWeight: '700', fontSize: narrow ? 10 : 11, letterSpacing: narrow ? 0 : 0.3 },
           tabBarBadgeStyle: { backgroundColor: colors.ready, color: colors.ink, fontWeight: '800' },
         }}
       >
@@ -83,7 +85,7 @@ export default function TabsLayout() {
           name="cuisine"
           listeners={leaveListeners}
           options={{
-            title: post === 'cuisine' ? 'Cuisine' : post === 'bar' ? 'Bar' : 'Cuisine / Bar',
+            title: post === 'cuisine' ? 'Cuisine' : post === 'bar' ? 'Bar' : narrow ? 'Cuisine/Bar' : 'Cuisine / Bar',
             href: showKitchen ? undefined : null,
             tabBarBadge: kitchenCount || undefined,
             tabBarIcon: tabIcon(post === 'bar' ? 'wine' : 'flame'),

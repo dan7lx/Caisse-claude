@@ -1,5 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { useNow } from '../store/StoreProvider';
+
 import type { LicenseStatus } from '../license/license';
 import { colors, fonts } from '../theme';
 
@@ -171,4 +173,36 @@ const styles = StyleSheet.create({
   lifetime: { padding: 16, borderRadius: 14, backgroundColor: colors.goldSoft, alignItems: 'center' },
   lifetimeTitle: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 20, color: colors.goldDeep },
   lifetimeText: { color: colors.text, marginTop: 4 },
+});
+
+const WEEKDAYS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+
+/** Date et heure actuelles, à la seconde (le calendrier et le blocage suivent l'horloge du téléphone). */
+export function LiveClock() {
+  const now = useNow(1000);
+  const d = new Date(now);
+  const time = [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
+  return (
+    <View style={clockStyles.wrap} accessibilityLabel={`Nous sommes le ${formatLongDate(now)}, il est ${time}`}>
+      <Text style={clockStyles.date}>
+        {WEEKDAYS[d.getDay()].charAt(0).toUpperCase() + WEEKDAYS[d.getDay()].slice(1)} {formatLongDate(now)}
+      </Text>
+      <Text style={clockStyles.time}>{time}</Text>
+    </View>
+  );
+}
+
+const clockStyles = StyleSheet.create({
+  wrap: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.goldSoft,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  date: { fontWeight: '700', color: colors.text, flexShrink: 1 },
+  time: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums', 'tabular-nums'], fontSize: 18, color: colors.goldDeep },
 });

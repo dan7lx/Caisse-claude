@@ -74,7 +74,7 @@ function ManagementScreen() {
           </Text>
           <Text style={styles.heroSub} numberOfLines={1}>
             {device.lobby ? `📡 Lobby ${device.lobby.code}` : 'Appareil seul'}
-            {s.autoLockMinutes ? ` · verrouillage ${s.autoLockMinutes} min` : ''}
+            {s.autoLockMinutes === -1 ? ' · verrouillage automatique' : s.autoLockMinutes ? ` · verrouillage ${s.autoLockMinutes} min` : ''}
           </Text>
         </View>
         {phone ? (
