@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Emoji3D } from '../../components/Emoji3D';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { useToast } from '../../components/Toast';
 import { Button, Empty, SectionTitle, Segmented } from '../../components/ui';
 import { setLinesStatus } from '../../store/actions';
@@ -29,10 +30,13 @@ const LINE_ICON: Record<LineStatus, React.ComponentProps<typeof Ionicons>['name'
 };
 
 export default function KitchenScreen() {
-  const { state, dispatch } = useStore();
+  const { state, device, dispatch } = useStore();
   const now = useNow(15000);
   const { width } = useWindowDimensions();
-  const [station, setStation] = useState<Station>('cuisine');
+  const [chosen, setStation] = useState<Station>('cuisine');
+  // Dans un lobby, le poste de l'employé fixe l'écran : la cuisine ne voit que la cuisine, le bar que le bar.
+  const fixed: Station | null = device.lobby && device.role !== 'serveur' ? device.role : null;
+  const station = fixed ?? chosen;
 
   const toast = useToast();
   const kitchen = useMemo(() => kitchenTickets(state, 'cuisine', now), [state, now]);
@@ -56,17 +60,23 @@ export default function KitchenScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
-        <Segmented<Station>
-          value={station}
-          onChange={setStation}
-          options={[
-            { value: 'cuisine', label: `🔥 Cuisine (${kitchen.active.length})` },
-            { value: 'bar', label: `🍸 Bar (${bar.active.length})` },
-          ]}
-        />
-      </View>
       <ScrollView contentContainerStyle={styles.content}>
+        <ScreenHeader
+          title={fixed === 'bar' ? 'Bar' : fixed === 'cuisine' ? 'Cuisine' : 'Cuisine & Bar'}
+          subtitle={`${active.length} ticket${active.length > 1 ? 's' : ''} en attente`}
+        >
+          {fixed ? null : (
+            <Segmented<Station>
+              dark
+              value={station}
+              onChange={setStation}
+              options={[
+                { value: 'cuisine', label: `🔥 Cuisine (${kitchen.active.length})` },
+                { value: 'bar', label: `🍸 Bar (${bar.active.length})` },
+              ]}
+            />
+          )}
+        </ScreenHeader>
         {active.length === 0 ? (
           <Empty
             icon={station === 'cuisine' ? 'restaurant-outline' : 'wine-outline'}
@@ -171,7 +181,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   header: { padding: 16, paddingBottom: 8 },
-  content: { padding: 11, paddingBottom: 32 },
+  content: { padding: 16, paddingBottom: 32 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { padding: 5 },
   ticket: {

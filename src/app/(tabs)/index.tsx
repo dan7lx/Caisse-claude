@@ -4,6 +4,7 @@ import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Emoji3D } from '../../components/Emoji3D';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { Button, Chip, Empty, SectionTitle } from '../../components/ui';
 import { createOrder } from '../../store/actions';
 import { uid } from '../../store/defaults';
@@ -26,7 +27,8 @@ export default function TablesScreen() {
 
   const zones = useMemo(() => Array.from(new Set(state.tables.map((t) => t.zone || 'Salle'))), [state.tables]);
 
-  if (device.role === 'cuisine') return <Redirect href="/cuisine" />;
+  // Dans un lobby, la cuisine et le bar arrivent directement sur leurs tickets.
+  if (device.lobby && device.role !== 'serveur') return <Redirect href="/cuisine" />;
 
   const gap = small ? 8 : 12;
   const contentWidth = Math.min(width, 1200) - 32;
@@ -60,11 +62,12 @@ export default function TablesScreen() {
 
   if (state.tables.length === 0) {
     return (
-      <View style={styles.screen}>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+        <ScreenHeader title={state.settings.restaurantName} subtitle="Plan de salle" logo={state.settings.logo} />
         <Empty icon="grid-outline" emoji="🪑" title="Aucune table" subtitle="Le gérant ajoute les tables dans Gestion › Tables & zones.">
           <Button title="Ajouter des tables" icon="add" onPress={() => router.push('/reglages/tables')} />
         </Empty>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -72,17 +75,13 @@ export default function TablesScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <ScreenHeader title={state.settings.restaurantName} subtitle="Plan de salle" logo={state.settings.logo} />
       <View style={styles.summary}>
         <Stat emoji="🍽️" color={colors.free} value={counts.libre} label="libres" />
         <Stat emoji="⏳" color={colors.busy} value={counts.occupee} label="occupées" />
         <Stat emoji="🛎️" color={colors.ready} value={counts.pret} label="à servir" />
       </View>
-      <View style={styles.me}>
-        <Ionicons name="person-circle" size={18} color={colors.goldDeep} />
-        <Text style={styles.meText}>
-          Service de <Text style={styles.meName}>{device.currentServer}</Text> · touchez une table pour commander
-        </Text>
-      </View>
+      <Text style={styles.meText}>Touchez une table pour prendre la commande.</Text>
 
       {zones.length > 1 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
@@ -208,9 +207,7 @@ const styles = StyleSheet.create({
   statTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   statValue: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 26 },
   statLabel: { fontSize: 12, color: colors.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
-  me: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 },
-  meText: { color: colors.muted, fontSize: 13, flexShrink: 1 },
-  meName: { color: colors.text, fontWeight: '800' },
+  meText: { color: colors.muted, fontSize: 13, marginTop: 12 },
   chips: { gap: 8, paddingVertical: 10 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   table: {

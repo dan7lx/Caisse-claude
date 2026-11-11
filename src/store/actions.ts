@@ -1,8 +1,11 @@
-import { createDemoData, createEmptyData, uid } from './defaults';
+import { createDemoData, createEmptyData, newStaff, uid } from './defaults';
 import type { Op } from './ops';
 import type {
   Billing,
   Category,
+  DailyClosure,
+  Role,
+  StaffMember,
   License,
   LineStatus,
   MenuItem,
@@ -63,12 +66,28 @@ export const setLinesStatus = (orderId: string, lineIds: string[], status: LineS
   at: Date.now(),
 });
 
-export const payOrder = (orderId: string, payment: PaymentMethod): Op => ({
+export interface PaymentExtras {
+  tip?: number;
+  discountPct?: number;
+  cashReceived?: number | null;
+}
+
+export const payOrder = (orderId: string, payment: PaymentMethod, extras: PaymentExtras = {}): Op => ({
   t: 'payOrder',
   orderId,
   payment,
   at: Date.now(),
+  ...extras,
 });
+
+export const moveOrderTable = (orderId: string, tableId: string, label: string): Op => ({
+  t: 'moveOrderTable',
+  orderId,
+  tableId,
+  label,
+});
+
+export const closeDay = (closure: DailyClosure, resetCounter: boolean): Op => ({ t: 'closeDay', closure, resetCounter });
 
 export const cancelOrder = (orderId: string): Op => ({ t: 'cancelOrder', orderId, at: Date.now() });
 
@@ -95,15 +114,19 @@ export const setItemAvailable = (id: string, available: boolean): Op => ({
   available,
 });
 
-export const addServer = (name: string): Op => ({ t: 'addServer', name });
+export const addServer = (name: string, role: Role = 'serveur'): Op => ({ t: 'addStaff', member: newStaff(name.trim(), role) });
+export const setStaff = (member: StaffMember): Op => ({ t: 'setStaff', member });
 export const renameServer = (oldName: string, newName: string): Op => ({ t: 'renameServer', oldName, newName });
 export const removeServer = (name: string): Op => ({ t: 'removeServer', name });
 
 /** Recharge la carte et la salle de démonstration en gardant l'identité du restaurant. */
-export const resetDemo = (settings: Settings): Op => ({ t: 'replaceData', data: { ...createDemoData(), settings } });
-export const wipeAll = (settings: Settings, servers: string[]): Op => ({
+export const resetDemo = (settings: Settings, staff: StaffMember[]): Op => ({
   t: 'replaceData',
-  data: createEmptyData(settings, servers),
+  data: { ...createDemoData(), settings, staff },
+});
+export const wipeAll = (settings: Settings, staff: StaffMember[]): Op => ({
+  t: 'replaceData',
+  data: createEmptyData(settings, staff),
 });
 
 export const setManagerPin = (hash: string | null, length: number | null = null): Op => ({

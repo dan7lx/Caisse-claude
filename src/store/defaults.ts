@@ -5,7 +5,9 @@ import type {
   DeviceState,
   MenuItem,
   RestaurantData,
+  Role,
   Settings,
+  StaffMember,
   Station,
   Table,
 } from './types';
@@ -53,12 +55,21 @@ export const defaultSettings: Settings = {
   address: '',
   phone: '',
   autoLockMinutes: 10,
+  vatNumber: '',
+  receiptFooter: 'Merci de votre visite et à bientôt !',
 };
 
-export function createEmptyData(settings: Settings = defaultSettings, servers: string[] = ['Serveur 1']): RestaurantData {
+export function newStaff(name: string, role: Role = 'serveur'): StaffMember {
+  return { id: uid(), name, role, pinHash: null, pinLength: null };
+}
+
+export function createEmptyData(
+  settings: Settings = defaultSettings,
+  staff: StaffMember[] = [newStaff('Serveur 1')],
+): RestaurantData {
   return {
     settings: { ...settings },
-    servers: [...servers],
+    staff: staff.map((m) => ({ ...m })),
     tables: [],
     categories: [],
     items: [],
@@ -138,7 +149,8 @@ export function createDemoData(): RestaurantData {
   tables.push({ id: uid(), name: 'B1', seats: 2, zone: 'Bar' });
   tables.push({ id: uid(), name: 'B2', seats: 2, zone: 'Bar' });
 
-  return { ...createEmptyData(), servers: ['Serveur 1', 'Serveur 2'], tables, categories, items };
+  const staff = [newStaff('Serveur 1'), newStaff('Serveur 2'), newStaff('Chef', 'cuisine'), newStaff('Barman', 'bar')];
+  return { ...createEmptyData(), staff, tables, categories, items };
 }
 
 export function createInitialState(): AppState {
@@ -149,6 +161,7 @@ export function createInitialState(): AppState {
     license: { id: newLicenseId(), plan: 'aucun', paidUntil: null, activatedAt: null, demoStartedAt: null },
     paymentLinks: { ...DEFAULT_PAYMENT_LINKS },
     billing: { ...DEFAULT_BILLING },
+    closures: [],
   };
 }
 
@@ -167,8 +180,14 @@ function guessCategoryEmoji(name: string, station: Station): string {
 /** Complète les données enregistrées par une version précédente (champs ajoutés depuis). */
 export function normalize(raw: AppState): AppState {
   const base = createInitialState();
+  const legacyServers = (raw as unknown as { servers?: string[] }).servers;
+  const staff: StaffMember[] = raw.staff ?? (legacyServers ?? ['Serveur 1']).map((name) => newStaff(name));
+  const { servers: _servers, ...rest } = raw as AppState & { servers?: string[] };
   return {
-    ...raw,
+    ...rest,
+    staff: staff.map((m) => ({ ...m, role: m.role ?? 'serveur', pinHash: m.pinHash ?? null, pinLength: m.pinLength ?? null })),
+    closures: raw.closures ?? [],
+    orders: raw.orders.map((o) => ({ ...o, tip: o.tip ?? 0, discountPct: o.discountPct ?? 0 })),
     settings: { ...defaultSettings, ...raw.settings },
     categories: raw.categories.map((c) => ({ ...c, emoji: c.emoji ?? guessCategoryEmoji(c.name, c.station) })),
     items: raw.items.map((i) => ({ ...i, emoji: i.emoji ?? '', choices: i.choices ?? [], allergens: i.allergens ?? [] })),
@@ -188,6 +207,7 @@ export function createDevice(): DeviceState {
     lobby: null,
     server: null,
     reminderDismissedOn: null,
+    printer: { paperWidth: 58, autoPrintReceipt: false, autoPrintKitchen: false, asciiOnly: false },
     pinFailures: 0,
     pinLockedUntil: null,
   };
@@ -218,7 +238,7 @@ export function migrate(raw: unknown): { state: AppState; currentServer?: string
       state: normalize({
         ...base,
         settings: { ...defaultSettings, ...settings },
-        servers: old.servers,
+        staff: old.servers.map((name) => newStaff(name)),
         tables: old.tables,
         categories: old.categories,
         items: old.items,

@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 import type { TableState } from './store/selectors';
-import type { LineStatus, PaymentMethod, Station } from './store/types';
+import type { LineStatus, PaymentMethod, Role, Station } from './store/types';
 
 /** Palette « brasserie de prestige » : noir chaud, or, ivoire et couleurs profondes. */
 export const colors = {
@@ -98,3 +98,7 @@ export const headerStyle = {
   headerTitleStyle: { fontFamily: fonts.display, color: colors.onDark, fontSize: 20 },
   headerShadowVisible: false,
 };
+
+
+export const roleLabel: Record<Role, string> = { serveur: 'Salle', cuisine: 'Cuisine', bar: 'Bar' };
+export const roleEmoji: Record<Role, string> = { serveur: '🙋', cuisine: '🧑‍🍳', bar: '🍸' };

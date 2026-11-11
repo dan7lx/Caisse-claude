@@ -1,5 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -15,7 +15,9 @@ import { addServer } from '../store/actions';
 import { useNow, useStore } from '../store/StoreProvider';
 import type { Role, ServerConfig } from '../store/types';
 import { makeInviteLink } from '../sync/backend';
-import { colors, fonts } from '../theme';
+import { colors, fonts, roleEmoji, roleLabel } from '../theme';
+
+const ROLE_OPTIONS = (['serveur', 'cuisine', 'bar'] as Role[]).map((r) => ({ value: r, label: `${roleEmoji[r]} ${roleLabel[r]}` }));
 import { haptic } from '../utils/haptics';
 import { useLayout } from '../utils/layout';
 
@@ -25,6 +27,7 @@ export default function TeamScreen() {
   const store = useStore();
   const { state, device, session, setSession, recordPinAttempt, updateDevice, dispatch, sync, pendingCount, invite } = store;
   const toast = useToast();
+  const router = useRouter();
   const { small } = useLayout();
   const now = useNow(5000);
   const lockedMessage = usePinLock();
@@ -101,12 +104,24 @@ export default function TeamScreen() {
     <>
       <SectionTitle>Cet appareil</SectionTitle>
       <Card style={styles.card}>
+        <Button title="Me connecter avec mon code" icon="key" variant="dark" onPress={() => router.push('/connexion')} />
         <Text style={styles.label}>Je suis</Text>
         <View style={styles.chipsRow}>
-          {state.servers.map((s) => (
-            <Chip key={s} label={s} color={colors.ink} selected={device.currentServer === s} onPress={() => updateDevice({ currentServer: s })} />
-          ))}
+          {state.staff
+            .filter((m) => !m.pinHash || m.name === device.currentServer)
+            .map((m) => (
+              <Chip
+                key={m.id}
+                label={`${roleEmoji[m.role]} ${m.name}`}
+                color={colors.ink}
+                selected={device.currentServer === m.name}
+                onPress={() => updateDevice({ currentServer: m.name, role: m.role })}
+              />
+            ))}
         </View>
+        {state.staff.some((m) => m.pinHash) ? (
+          <Text style={styles.hint}>Les employés qui ont un code personnel se connectent avec leur code.</Text>
+        ) : null}
         <View style={styles.row}>
           <TextInput
             value={newName}
@@ -131,12 +146,12 @@ export default function TeamScreen() {
         <Segmented<Role>
           value={device.role}
           onChange={(role) => updateDevice({ role })}
-          options={[
-            { value: 'serveur', label: '🙋 Salle' },
-            { value: 'cuisine', label: '🧑‍🍳 Cuisine / bar' },
-          ]}
+          options={ROLE_OPTIONS}
         />
-        <Text style={styles.hint}>« Cuisine / bar » n’affiche que les tickets : idéal pour la tablette en cuisine.</Text>
+        <Text style={styles.hint}>
+          Dans le lobby : Salle = tables et commandes · Cuisine = uniquement les plats envoyés en cuisine · Bar = uniquement
+          les boissons envoyées au bar. En quittant le lobby, l’application redevient complète.
+        </Text>
       </Card>
     </>
   );

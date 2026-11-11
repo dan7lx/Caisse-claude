@@ -79,8 +79,9 @@ export function JoinTeamForm({ dark, onJoined }: Props) {
         value={role}
         onChange={setRole}
         options={[
-          { value: 'serveur', label: 'Salle / serveur' },
-          { value: 'cuisine', label: 'Cuisine / bar' },
+          { value: 'serveur', label: '🙋 Salle' },
+          { value: 'cuisine', label: '🧑‍🍳 Cuisine' },
+          { value: 'bar', label: '🍸 Bar' },
         ]}
       />
       {needsServer ? (

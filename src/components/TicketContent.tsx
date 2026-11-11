@@ -16,10 +16,12 @@ interface Props {
   onSend: () => void;
   onPay: () => void;
   onCancel: () => void;
+  onPrintBill?: () => void;
+  onMoveTable?: () => void;
 }
 
 /** Détail du ticket d'une table : couverts, articles à envoyer, envois, total et actions. */
-export function TicketContent({ order, onNote, onSend, onPay, onCancel }: Props) {
+export function TicketContent({ order, onNote, onSend, onPay, onCancel, onPrintBill, onMoveTable }: Props) {
   const { state, dispatch } = useStore();
   const currency = state.settings.currency;
   const readOnly = order.status !== 'ouverte';
@@ -151,6 +153,14 @@ export function TicketContent({ order, onNote, onSend, onPay, onCancel }: Props)
             disabled={!order.lines.length}
             onPress={onPay}
           />
+          <View style={styles.tools}>
+            {onPrintBill && order.lines.length ? (
+              <Button title="Addition" icon="print-outline" small variant="secondary" onPress={onPrintBill} style={styles.flex} />
+            ) : null}
+            {onMoveTable && order.tableId ? (
+              <Button title="Changer de table" icon="swap-horizontal" small variant="secondary" onPress={onMoveTable} style={styles.flex} />
+            ) : null}
+          </View>
           <Button title="Annuler la commande" icon="trash-outline" variant="ghost" onPress={onCancel} />
         </View>
       ) : null}
@@ -194,4 +204,5 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: 13, fontWeight: '800', color: colors.goldDeep, letterSpacing: 1.4, textTransform: 'uppercase' },
   totalValue: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 32, color: colors.text },
   actions: { gap: 10, marginTop: 6 },
+  tools: { flexDirection: 'row', gap: 8 },
 });

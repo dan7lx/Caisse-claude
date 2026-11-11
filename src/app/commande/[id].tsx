@@ -14,14 +14,18 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { type CheckoutResult, CheckoutSheet } from '../../components/CheckoutSheet';
 import { Emoji3D } from '../../components/Emoji3D';
+import { PrintPreview } from '../../components/PrintPreview';
+import { printDoc } from '../../print';
+import { receiptDoc, type PrintDoc as PrintDocType } from '../../print/doc';
 import { HeaderTitle } from '../../components/HeaderParts';
 import { MenuItemCard } from '../../components/MenuItemCard';
 import { useToast } from '../../components/Toast';
 import { TicketContent } from '../../components/TicketContent';
-import { Button, Chip, confirm, Empty, Field, FormModal, IconButton } from '../../components/ui';
-import { addItem, cancelOrder, changeQty, payOrder, removeIfEmpty, sendOrder, setLineNote } from '../../store/actions';
-import { orderTotal } from '../../store/selectors';
+import { Button, Chip, confirm, Empty, Field, FormModal, IconButton, notify } from '../../components/ui';
+import { addItem, cancelOrder, changeQty, moveOrderTable, payOrder, removeIfEmpty, sendOrder, setLineNote } from '../../store/actions';
+import { orderTotal, tableLabel } from '../../store/selectors';
 import { useStore } from '../../store/StoreProvider';
 import type { MenuItem, Order, OrderLine, PaymentMethod } from '../../store/types';
 import { colors, fonts, paymentLabel, shadow } from '../../theme';
@@ -40,7 +44,7 @@ const QUICK_NOTES = ['Saignant', 'À point', 'Bien cuit', 'Sans gluten', 'Sans o
 export default function OrderScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const id = typeof params.id === 'string' ? params.id : '';
-  const { state, dispatch } = useStore();
+  const { state, device, dispatch } = useStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width, small } = useLayout();
@@ -55,6 +59,9 @@ export default function OrderScreen() {
   const [searching, setSearching] = useState(false);
   const [ticketOpen, setTicketOpen] = useState(false);
   const [payOpen, setPayOpen] = useState(false);
+  const [receipt, setReceipt] = useState<PrintDocType | null>(null);
+  const [preview, setPreview] = useState<PrintDocType | null>(null);
+  const [moving, setMoving] = useState(false);
   const [noteLine, setNoteLine] = useState<OrderLine | null>(null);
   const [noteText, setNoteText] = useState('');
   const [choiceItem, setChoiceItem] = useState<MenuItem | null>(null);
@@ -160,14 +167,30 @@ export default function OrderScreen() {
       'Annuler la commande',
     );
 
-  const pay = (method: PaymentMethod) => {
-    dispatch(payOrder(order.id, method));
-    haptic.success();
-    toast(`${order.label} encaissée · ${formatPrice(total, currency)}`, '💰');
+  const pay = (result: CheckoutResult) => {
+    dispatch(payOrder(order.id, result.payment, result));
+    const paidOrder: Order = {
+      ...order,
+      status: 'payee',
+      paidAt: Date.now(),
+      payment: result.payment,
+      tip: result.tip,
+      discountPct: result.discountPct,
+      cashReceived: result.cashReceived,
+    };
+    const doc = receiptDoc(state, paidOrder);
+    toast(`${order.label} encaissée · ${formatPrice(orderTotal(paidOrder) + result.tip, currency)}`, '💰');
     setPayOpen(false);
     setTicketOpen(false);
-    router.back();
+    setReceipt(doc);
+    if (device.printer.autoPrintReceipt) {
+      printDoc(doc, device.printer).catch((e: unknown) => notify('Impression', e instanceof Error ? e.message : 'Impression impossible.'));
+    }
   };
+
+  const freeTables = state.tables.filter(
+    (t) => t.id !== order.tableId && !state.orders.some((o) => o.status === 'ouverte' && o.tableId === t.id),
+  );
 
   const ticket = (
     <TicketContent
@@ -178,6 +201,8 @@ export default function OrderScreen() {
       }}
       onSend={send}
       onPay={() => setPayOpen(true)}
+      onPrintBill={() => setPreview(receiptDoc(state, order))}
+      onMoveTable={state.tables.length > 1 ? () => setMoving(true) : undefined}
       onCancel={cancel}
     />
   );
@@ -382,26 +407,40 @@ export default function OrderScreen() {
         </View>
       </FormModal>
 
-      <FormModal visible={payOpen} title="Encaissement" onClose={() => setPayOpen(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={styles.payTotal}>
-            <Text style={styles.payLabel}>{order.label}</Text>
-            <Text style={styles.payAmount}>{formatPrice(total, currency)}</Text>
-            <Text style={styles.payMeta}>
-              dont TVA {state.settings.taxRate} % :{' '}
-              {formatPrice(Math.round((total * state.settings.taxRate) / (100 + state.settings.taxRate)), currency)}
-            </Text>
-            {order.guests > 1 ? (
-              <Text style={styles.payMeta}>
-                soit {formatPrice(Math.round(total / order.guests), currency)} par couvert ({order.guests})
-              </Text>
-            ) : null}
-            {draftQty ? <Text style={styles.warning}>{draftQty} article(s) non envoyé(s) seront envoyés automatiquement.</Text> : null}
-          </View>
-        </KeyboardAvoidingView>
-        {(Object.keys(paymentLabel) as PaymentMethod[]).map((m) => (
-          <Button key={m} title={paymentLabel[m]} icon={PAYMENT_ICONS[m]} variant={m === 'carte' ? 'primary' : 'secondary'} large onPress={() => pay(m)} />
-        ))}
+      <CheckoutSheet order={order} visible={payOpen} onClose={() => setPayOpen(false)} onConfirm={pay} />
+
+      <PrintPreview
+        doc={receipt}
+        closeLabel="Terminer"
+        onClose={() => {
+          setReceipt(null);
+          router.back();
+        }}
+      />
+      <PrintPreview doc={preview} onClose={() => setPreview(null)} />
+
+      <FormModal visible={moving} title="Changer de table" onClose={() => setMoving(false)}>
+        <Text style={styles.moveHint}>Choisissez la table libre où installer {order.label} :</Text>
+        <View style={styles.moveGrid}>
+          {freeTables.map((t) => (
+            <Pressable
+              key={t.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Déplacer vers ${tableLabel(t)}`}
+              onPress={() => {
+                dispatch(moveOrderTable(order.id, t.id, tableLabel(t)));
+                setMoving(false);
+                haptic.success();
+                toast(`Commande déplacée vers ${tableLabel(t)}`, '🪑');
+              }}
+              style={({ pressed }) => [styles.moveCell, pressed && { opacity: 0.7 }]}
+            >
+              <Text style={styles.moveName}>{t.name}</Text>
+              <Text style={styles.moveZone}>{t.zone}</Text>
+            </Pressable>
+          ))}
+          {freeTables.length === 0 ? <Text style={styles.moveHint}>Aucune table libre.</Text> : null}
+        </View>
       </FormModal>
     </View>
   );
@@ -534,6 +573,20 @@ const styles = StyleSheet.create({
   sheetHead: { alignItems: 'flex-end', paddingHorizontal: 10 },
   sheetBody: { paddingHorizontal: 18, paddingBottom: 12 },
   quickNotes: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  moveHint: { color: colors.muted },
+  moveGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  moveCell: {
+    width: 84,
+    height: 72,
+    borderRadius: 16,
+    backgroundColor: colors.card,
+    borderWidth: 1.5,
+    borderColor: colors.free,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moveName: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 24, color: colors.text },
+  moveZone: { fontSize: 11, color: colors.muted },
   choiceHead: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   choicePrice: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 28, color: colors.text },
   choiceDesc: { color: colors.muted, marginTop: 2 },

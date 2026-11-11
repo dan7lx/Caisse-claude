@@ -67,6 +67,12 @@ export interface Order {
   paidAt: number | null;
   payment: PaymentMethod | null;
   batchCount: number;
+  /** Remise en pourcentage appliquée à l'encaissement. */
+  discountPct?: number;
+  /** Pourboire en centimes (en plus du total). */
+  tip?: number;
+  /** Espèces reçues (pour calculer la monnaie rendue). */
+  cashReceived?: number | null;
 }
 
 export interface Settings {
@@ -83,8 +89,15 @@ export interface Settings {
   slogan: string;
   address: string;
   phone: string;
-  /** Verrouillage automatique de la Gestion après N minutes sans activité (0 = jamais). */
+  /**
+   * Verrouillage de la Gestion : après N minutes sans activité (0 = jamais),
+   * ou -1 = automatique, dès qu'on quitte la Gestion.
+   */
   autoLockMinutes: number;
+  /** Numéro de TVA de l'entreprise (imprimé sur les tickets). */
+  vatNumber: string;
+  /** Message en bas du ticket de caisse. */
+  receiptFooter: string;
 }
 
 export interface Security {
@@ -96,6 +109,33 @@ export interface Security {
   managerCanManage: boolean;
   /** … ou la création de lobby. */
   managerCanCreateLobby: boolean;
+}
+
+export type Role = 'serveur' | 'cuisine' | 'bar';
+
+/** Membre de l'équipe : son poste et son code personnel (empreinte). */
+export interface StaffMember {
+  id: string;
+  name: string;
+  role: Role;
+  pinHash: string | null;
+  pinLength: number | null;
+}
+
+/** Clôture journalière (« Z de caisse »), faite automatiquement à minuit. */
+export interface DailyClosure {
+  /** Jour clôturé, AAAA-MM-JJ (heure locale). */
+  date: string;
+  closedAt: number;
+  count: number;
+  cancelled: number;
+  guests: number;
+  /** Chiffre d'affaires TTC (remises déduites, hors pourboires). */
+  revenue: number;
+  tips: number;
+  discounts: number;
+  byPayment: Record<PaymentMethod, number>;
+  topItems: { name: string; qty: number; total: number }[];
 }
 
 export type Plan = 'aucun' | 'mensuel' | 'vie';
@@ -126,7 +166,7 @@ export interface Billing {
 export interface AppState {
   version: 2;
   settings: Settings;
-  servers: string[];
+  staff: StaffMember[];
   tables: Table[];
   categories: Category[];
   items: MenuItem[];
@@ -136,15 +176,14 @@ export interface AppState {
   license: License;
   paymentLinks: PaymentLinks;
   billing: Billing;
+  closures: DailyClosure[];
 }
 
 /** Données de la carte et de la salle, sans la sécurité ni la licence. */
 export type RestaurantData = Pick<
   AppState,
-  'settings' | 'servers' | 'tables' | 'categories' | 'items' | 'orders' | 'orderCounter'
+  'settings' | 'staff' | 'tables' | 'categories' | 'items' | 'orders' | 'orderCounter'
 >;
-
-export type Role = 'serveur' | 'cuisine';
 
 export interface ServerConfig {
   url: string;
@@ -168,7 +207,20 @@ export interface DeviceState {
   server: ServerConfig | null;
   /** Date (AAAA-MM-JJ) du dernier rappel de paiement fermé. */
   reminderDismissedOn: string | null;
+  printer: PrinterSettings;
   /** Essais de code gérant ratés d'affilée, et blocage temporaire qui en découle. */
   pinFailures: number;
   pinLockedUntil: number | null;
+}
+
+/** Imprimante de cet appareil. */
+export interface PrinterSettings {
+  /** Largeur du papier : 58 mm (32 caractères) ou 80 mm (48 caractères). */
+  paperWidth: 58 | 80;
+  /** Imprimer le ticket de caisse automatiquement après l'encaissement. */
+  autoPrintReceipt: boolean;
+  /** Imprimer les bons de commande en cuisine / au bar à leur arrivée. */
+  autoPrintKitchen: boolean;
+  /** Imprimer sans accents (imprimantes qui n'ont pas la table de caractères européenne). */
+  asciiOnly: boolean;
 }

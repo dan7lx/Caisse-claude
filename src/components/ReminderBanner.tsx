@@ -1,7 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatCountdown, licenseStatus, type LicenseStatus } from '../license/license';
 import { useNow, useStore } from '../store/StoreProvider';
@@ -9,64 +7,86 @@ import { colors, fonts } from '../theme';
 import { Emoji3D } from './Emoji3D';
 import { formatLongDate } from './PaymentCalendar';
 
-/** Un bandeau est affiché pendant la démo ou les 5 jours qui précèdent l'échéance. */
-export const hasTopBanner = (status: LicenseStatus) => status.demo || status.inReminderWindow;
+/** Un bandeau est affiché pendant l'essai gratuit ou les 5 jours qui précèdent l'échéance. */
+export const hasStatusStrip = (status: LicenseStatus) => status.demo || status.inReminderWindow;
+
+/** « 23:59:12 » → « 23 h 59 min 12 s » */
+function humanCountdown(ms: number): string {
+  const [h, m, s] = formatCountdown(ms).split(':');
+  return `${parseInt(h, 10)} h ${m} min ${s} s`;
+}
 
 /**
- * Bandeau en haut de l'écran : minuteur du mode démo (à la seconde)
- * ou rappel de paiement pendant les 5 jours qui précèdent le 1er du mois.
+ * Bandeau placé juste au-dessus des onglets : toujours visible, sans cacher l'en-tête.
+ * Pendant l'essai : temps restant à la seconde et ce qui se passera ensuite.
+ * Avant l'échéance mensuelle : rappel de paiement (5 jours avant le 1er).
  */
-export function ReminderBanner() {
+export function StatusStrip() {
   const { state } = useStore();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const coarse = licenseStatus(state.license);
-  // Le minuteur de la démo se met à jour chaque seconde, mais seulement dans ce bandeau.
+  // Mis à jour chaque seconde pendant l'essai, mais seulement dans ce bandeau.
   const now = useNow(coarse.demo ? 1000 : 15000);
   const status = licenseStatus(state.license, now);
-  if (!hasTopBanner(status)) return null;
+  if (!hasStatusStrip(status)) return null;
 
-  if (status.demo && status.demoEndsAt) {
-    return (
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Mode démo, voir les abonnements"
-        onPress={() => router.push('/abonnement')}
-        style={[styles.banner, styles.demo, { paddingTop: insets.top + 8 }]}
-      >
-        <Emoji3D emoji="⏱️" size={24} />
-        <Text style={styles.demoText} numberOfLines={1}>
-          Mode démo · <Text style={styles.timer}>{formatCountdown(status.demoEndsAt - now)}</Text>
-        </Text>
-        <Text style={styles.demoCta}>S’abonner</Text>
-        <Ionicons name="chevron-forward" size={16} color={colors.gold} />
-      </Pressable>
-    );
-  }
+  const demo = status.demo && status.demoEndsAt !== null;
+  const remaining = demo ? (status.demoEndsAt ?? now) - now : 0;
+  const urgent = demo ? remaining < 2 * 3600_000 : (status.daysLeft ?? 9) <= 1;
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Payer l’abonnement"
+      accessibilityLabel={demo ? 'Essai gratuit en cours, voir les abonnements' : 'Paiement de l’abonnement à effectuer'}
       onPress={() => router.push('/abonnement')}
-      style={[styles.banner, styles.reminder, { paddingTop: insets.top + 8 }]}
+      style={({ pressed }) => [styles.strip, urgent && styles.urgent, pressed && { opacity: 0.9 }]}
     >
-      <Emoji3D emoji="⏰" size={24} />
-      <Text style={styles.text} numberOfLines={2}>
-        Paiement dû le {formatLongDate(status.dueDate ?? now)}
-        {status.daysLeft !== null ? ` · J-${status.daysLeft}` : ''} — touchez pour payer
-      </Text>
-      <Ionicons name="chevron-forward" size={18} color={colors.ink} />
+      <Emoji3D emoji={demo ? '🎁' : '⏰'} size={34} />
+      <View style={styles.flex}>
+        {demo ? (
+          <>
+            <Text style={styles.title} numberOfLines={1}>
+              Essai gratuit : encore <Text style={styles.timer}>{humanCountdown(remaining)}</Text>
+            </Text>
+            <Text style={styles.text} numberOfLines={2}>
+              À la fin de l’essai, l’application sera bloquée jusqu’au paiement.
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={styles.title} numberOfLines={1}>
+              Paiement dû le {formatLongDate(status.dueDate ?? now)}
+            </Text>
+            <Text style={styles.text} numberOfLines={2}>
+              {status.daysLeft !== null ? `Dans ${status.daysLeft} jour${status.daysLeft > 1 ? 's' : ''}. ` : ''}Sans paiement,
+              l’application se bloque automatiquement à cette date.
+            </Text>
+          </>
+        )}
+      </View>
+      <View style={styles.cta}>
+        <Text style={styles.ctaText}>{demo ? 'S’abonner' : 'Payer'}</Text>
+      </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  banner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingBottom: 8 },
-  reminder: { backgroundColor: colors.goldLight },
-  demo: { backgroundColor: '#2B2213', borderBottomWidth: 1, borderBottomColor: colors.goldDeep },
-  text: { flex: 1, color: colors.ink, fontWeight: '700', fontSize: 13 },
-  demoText: { flex: 1, color: colors.onDark, fontWeight: '700', fontSize: 14 },
-  timer: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums', 'tabular-nums'], color: colors.gold, fontSize: 16 },
-  demoCta: { color: colors.gold, fontWeight: '800', fontSize: 13 },
+  strip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#2B2213',
+    borderTopWidth: 1,
+    borderTopColor: colors.goldDeep,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  urgent: { backgroundColor: '#3A1714', borderTopColor: colors.danger },
+  flex: { flex: 1 },
+  title: { color: colors.onDark, fontWeight: '800', fontSize: 14 },
+  timer: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums', 'tabular-nums'], color: colors.gold },
+  text: { color: colors.onDarkMuted, fontSize: 12, marginTop: 1 },
+  cta: { backgroundColor: colors.gold, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
+  ctaText: { color: colors.ink, fontWeight: '900', fontSize: 13 },
 });

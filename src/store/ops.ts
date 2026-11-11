@@ -1,6 +1,8 @@
 import type {
   AppState,
   Billing,
+  DailyClosure,
+  StaffMember,
   Category,
   License,
   LineStatus,
@@ -29,7 +31,19 @@ export type Op =
   | { t: 'setGuests'; orderId: string; guests: number }
   | { t: 'sendOrder'; orderId: string; at: number }
   | { t: 'setLinesStatus'; orderId: string; lineIds: string[]; status: LineStatus; at: number }
-  | { t: 'payOrder'; orderId: string; payment: PaymentMethod; at: number }
+  | {
+      t: 'payOrder';
+      orderId: string;
+      payment: PaymentMethod;
+      at: number;
+      tip?: number;
+      discountPct?: number;
+      cashReceived?: number | null;
+    }
+  | { t: 'moveOrderTable'; orderId: string; tableId: string; label: string }
+  | { t: 'closeDay'; closure: DailyClosure; resetCounter: boolean }
+  | { t: 'addStaff'; member: StaffMember }
+  | { t: 'setStaff'; member: StaffMember }
   | { t: 'cancelOrder'; orderId: string; at: number }
   | { t: 'removeIfEmpty'; orderId: string }
   | { t: 'clearHistory' }
@@ -154,8 +168,35 @@ export function reduce(s: AppState, op: Op): AppState {
       }));
     case 'payOrder':
       return mapOrder(s, op.orderId, (o) =>
-        o.status !== 'ouverte' ? o : { ...sendLines(o, op.at), status: 'payee', paidAt: op.at, payment: op.payment },
+        o.status !== 'ouverte'
+          ? o
+          : {
+              ...sendLines(o, op.at),
+              status: 'payee',
+              paidAt: op.at,
+              payment: op.payment,
+              tip: Math.max(0, Math.round(op.tip ?? 0)),
+              discountPct: Math.min(100, Math.max(0, op.discountPct ?? 0)),
+              cashReceived: op.cashReceived ?? null,
+            },
       );
+    case 'moveOrderTable': {
+      // Changement de table : refusé si la table de destination est déjà occupée.
+      if (s.orders.some((o) => o.status === 'ouverte' && o.tableId === op.tableId && o.id !== op.orderId)) return s;
+      return mapOrder(s, op.orderId, (o) => (o.status === 'ouverte' ? { ...o, tableId: op.tableId, label: op.label } : o));
+    }
+    case 'closeDay':
+      if (s.closures.some((c) => c.date === op.closure.date)) return s;
+      return {
+        ...s,
+        closures: [...s.closures, op.closure].sort((a, b) => a.date.localeCompare(b.date)).slice(-400),
+        orderCounter: op.resetCounter ? 0 : s.orderCounter,
+      };
+    case 'addStaff':
+      if (s.staff.some((m) => m.id === op.member.id || m.name === op.member.name)) return s;
+      return { ...s, staff: [...s.staff, op.member] };
+    case 'setStaff':
+      return { ...s, staff: s.staff.map((m) => (m.id === op.member.id ? op.member : m)) };
     case 'cancelOrder': {
       const order = s.orders.find((o) => o.id === op.orderId);
       if (!order) return s;
@@ -214,18 +255,19 @@ export function reduce(s: AppState, op: Op): AppState {
     case 'setItemAvailable':
       return { ...s, items: s.items.map((i) => (i.id === op.id ? { ...i, available: op.available } : i)) };
     case 'addServer': {
+      // Ancienne opération (versions précédentes) : identifiant déduit du nom pour rester rejouable.
       const clean = op.name.trim();
-      if (!clean || s.servers.includes(clean)) return s;
-      return { ...s, servers: [...s.servers, clean] };
+      if (!clean || s.staff.some((m) => m.name === clean)) return s;
+      return { ...s, staff: [...s.staff, { id: `staff-${clean}`, name: clean, role: 'serveur', pinHash: null, pinLength: null }] };
     }
     case 'renameServer': {
       const clean = op.newName.trim();
-      if (!clean || (clean !== op.oldName && s.servers.includes(clean))) return s;
-      return { ...s, servers: s.servers.map((n) => (n === op.oldName ? clean : n)) };
+      if (!clean || (clean !== op.oldName && s.staff.some((m) => m.name === clean))) return s;
+      return { ...s, staff: s.staff.map((m) => (m.name === op.oldName ? { ...m, name: clean } : m)) };
     }
     case 'removeServer':
-      if (s.servers.length <= 1) return s;
-      return { ...s, servers: s.servers.filter((n) => n !== op.name) };
+      if (s.staff.length <= 1) return s;
+      return { ...s, staff: s.staff.filter((m) => m.name !== op.name) };
     case 'replaceData':
       return { ...s, ...op.data };
     case 'setManagerPin':

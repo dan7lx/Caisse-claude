@@ -27,6 +27,13 @@ export const DEMO_HOURS = 24;
 /** Coordonnées bancaires affichées au moment du paiement (modifiables dans Administration). */
 export const DEFAULT_BILLING: Billing = { iban: 'BE71650156242169', holder: 'R Pereira' };
 
+/** Assistance : WhatsApp et téléphone, disponibles 24 h/24. */
+export const SUPPORT = {
+  phone: '+32465538869',
+  phoneLabel: '+32 465 53 88 69',
+  whatsapp: '32465538869',
+};
+
 /** Sel des codes d'activation générés par l'administrateur. */
 export const LICENSE_SALT = 'caisse-resto:licence:v1:7f3a9c2e';
 

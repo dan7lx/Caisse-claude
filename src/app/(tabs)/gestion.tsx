@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { Image, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Emoji3D } from '../../components/Emoji3D';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { SupportCard } from '../../components/SupportCard';
 import { ManagerGate } from '../../components/ManagerGate';
 import { formatLongDate } from '../../components/PaymentCalendar';
 import { useToast } from '../../components/Toast';
@@ -54,6 +56,7 @@ function ManagementScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <ScreenHeader title="Gestion" subtitle={session.admin ? 'Espace administrateur' : 'Espace gérant'} />
       <View style={styles.hero}>
         {s.logo ? (
           <Image source={{ uri: s.logo }} style={styles.logo} accessibilityLabel="Logo" />
@@ -126,13 +129,24 @@ function ManagementScreen() {
       <SectionTitle>La salle & l’équipe</SectionTitle>
       <Group>
         <ListRow emoji="🪑" title="Tables & zones" subtitle={`${state.tables.length} tables · ${zones} zone(s)`} chevron onPress={() => router.push('/reglages/tables')} />
-        <ListRow emoji="👥" title="Serveurs" subtitle={`${state.servers.length} serveur(s)`} chevron onPress={() => router.push('/reglages/serveurs')} />
+        <ListRow emoji="👥" title="Équipe & postes" subtitle={`${state.staff.length} employé(s) · postes et codes`} chevron onPress={() => router.push('/reglages/serveurs')} />
         <ListRow
           emoji="📡"
           title="Lobby de l’équipe"
           subtitle={device.lobby ? `Code ${device.lobby.code} · inviter, QR code` : 'Créer ou rejoindre un lobby'}
           chevron
           onPress={() => router.push('/equipe')}
+        />
+      </Group>
+
+      <SectionTitle>Caisse & impression</SectionTitle>
+      <Group>
+        <ListRow
+          emoji="🧾"
+          title="Imprimante & tickets"
+          subtitle={`Bluetooth ou impression du téléphone · papier ${device.printer.paperWidth} mm`}
+          chevron
+          onPress={() => router.push('/reglages/imprimante')}
         />
       </Group>
 
@@ -163,7 +177,7 @@ function ManagementScreen() {
           title="Recharger la carte de démonstration"
           subtitle="Remplace la carte, les tables et l’historique (garde l’identité)"
           onPress={() =>
-            confirm('Recharger la démo ?', 'La carte, les tables et les commandes seront remplacées.', () => dispatch(resetDemo(state.settings)), 'Recharger')
+            confirm('Recharger la démo ?', 'La carte, les tables et les commandes seront remplacées.', () => dispatch(resetDemo(state.settings, state.staff)), 'Recharger')
           }
         />
         <ListRow
@@ -176,12 +190,13 @@ function ManagementScreen() {
               hasOpenOrders
                 ? 'Des commandes sont en cours. Elles seront aussi supprimées. Action définitive.'
                 : 'La carte, les tables et l’historique seront supprimés. Action définitive.',
-              () => dispatch(wipeAll(state.settings, state.servers)),
+              () => dispatch(wipeAll(state.settings, state.staff)),
               'Tout effacer',
             )
           }
         />
       </Group>
+      <SupportCard />
       <Text style={styles.footnote}>
         {device.lobby ? 'Les modifications sont partagées avec toute l’équipe du lobby.' : 'Les données sont enregistrées sur cet appareil.'}
       </Text>

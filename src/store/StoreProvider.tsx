@@ -4,7 +4,9 @@ import { ActivityIndicator, AppState as RNAppState, Platform, View } from 'react
 
 import { backend, BackendError, normalizeServer, parseInvite, type RemoteEvent } from '../sync/backend';
 import { colors } from '../theme';
-import { createDevice, createInitialState, migrate, normalize, uid } from './defaults';
+import { closeDay } from './actions';
+import { createDevice, createInitialState, migrate, newStaff, normalize, uid } from './defaults';
+import { buildClosure, daysToClose } from './selectors';
 import { reduce, reduceAll, type Op } from './ops';
 import type { AppState, DeviceState, Role, ServerConfig } from './types';
 
@@ -356,9 +358,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (pulled.events.length < 500) break;
       }
       const name = profile.name.trim() || 'Serveur';
-      const pending: PendingOp[] = confirmed.servers.includes(name)
+      const pending: PendingOp[] = confirmed.staff.some((m) => m.name === name)
         ? []
-        : [{ opId: uid(), op: { t: 'addServer', name } }];
+        : [{ opId: uid(), op: { t: 'addStaff', member: newStaff(name, profile.role) } }];
       commitSync({ lobbyId: res.lobby_id, seq, snapshotSeq: res.snapshot_seq, confirmed, pending });
       if (deviceRef.current) {
         commitDevice({
@@ -400,6 +402,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }, 10_000);
     return () => clearInterval(timer);
   }, [unlocked, autoLockMinutes]);
+
+  // Verrouillage « automatique » : la Gestion se referme aussi quand l'application passe en arrière-plan.
+  useEffect(() => {
+    if (!unlocked || autoLockMinutes !== -1) return;
+    const sub = RNAppState.addEventListener('change', (st) => {
+      if (st !== 'active') setSessionState({ manager: false, admin: false });
+    });
+    return () => sub.remove();
+  }, [unlocked, autoLockMinutes]);
+
+  // Clôture automatique à minuit : chaque journée passée est clôturée (Z de caisse) et la numérotation repart à 1.
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  useEffect(() => {
+    if (!loaded) return;
+    const run = () => {
+      const s = stateRef.current;
+      if (!s) return;
+      const days = daysToClose(s);
+      days.forEach((d, i) => dispatch(closeDay(buildClosure(s, d), i === days.length - 1)));
+    };
+    run();
+    const timer = setInterval(run, 60_000);
+    return () => clearInterval(timer);
+  }, [loaded, dispatch]);
 
   const pendingCount = syncData?.pending.length ?? 0;
   const value = useMemo<StoreValue | null>(

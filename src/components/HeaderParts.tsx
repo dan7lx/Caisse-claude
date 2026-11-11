@@ -71,7 +71,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    marginRight: 12,
   },
   teamText: { color: colors.onDark, fontWeight: '800', letterSpacing: 1 },
   dot: { width: 8, height: 8, borderRadius: 4 },

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Emoji3D } from '../../components/Emoji3D';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { Badge, Empty, Segmented } from '../../components/ui';
 import { countByStatus, openOrders, orderTotal, tableState } from '../../store/selectors';
 import { useNow, useStore } from '../../store/StoreProvider';
@@ -32,21 +33,26 @@ export default function OrdersScreen() {
 
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
-        <Segmented<Filter>
-          value={filter}
-          onChange={setFilter}
-          options={[
-            { value: 'toutes', label: small ? `Toutes ${all.length}` : `Toutes (${all.length})` },
-            { value: 'miennes', label: small ? 'Moi' : 'Les miennes' },
-            { value: 'a_servir', label: small ? `Servir ${toServe}` : `À servir (${toServe})` },
-          ]}
-        />
-      </View>
       <FlatList
         data={orders}
         keyExtractor={(o) => o.id}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          <>
+            <ScreenHeader title="Commandes" subtitle="En cours" />
+            <View style={styles.header}>
+              <Segmented<Filter>
+                value={filter}
+                onChange={setFilter}
+                options={[
+                  { value: 'toutes', label: small ? `Toutes ${all.length}` : `Toutes (${all.length})` },
+                  { value: 'miennes', label: small ? 'Moi' : 'Les miennes' },
+                  { value: 'a_servir', label: small ? `Servir ${toServe}` : `À servir (${toServe})` },
+                ]}
+              />
+            </View>
+          </>
+        }
         ListEmptyComponent={
           <Empty
             icon="receipt-outline"
@@ -118,7 +124,7 @@ function OrderCard({ order, now, currency, onPress }: OrderCardProps) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  header: { padding: 16, paddingBottom: 6, width: '100%', maxWidth: 900, alignSelf: 'center' },
+  header: { marginBottom: 6 },
   list: { padding: 16, paddingTop: 10, gap: 12, width: '100%', maxWidth: 900, alignSelf: 'center' },
   card: {
     flexDirection: 'row',

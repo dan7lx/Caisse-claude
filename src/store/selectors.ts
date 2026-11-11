@@ -1,11 +1,27 @@
-import type { AppState, LineStatus, Order, OrderLine, PaymentMethod, Station, Table } from './types';
+import type { AppState, DailyClosure, LineStatus, Order, OrderLine, PaymentMethod, Station, Table } from './types';
 
 /** Libellé d'une commande à partir du nom de la table (« 5 » → « Table 5 »). */
 export const tableLabel = (t: Table) => (/^\d+$/.test(t.name) ? `Table ${t.name}` : t.name);
 
 export const lineTotal = (line: OrderLine) => line.unitPrice * line.qty;
 
-export const orderTotal = (order: Order) => order.lines.reduce((sum, l) => sum + lineTotal(l), 0);
+/** Total des articles, avant remise. */
+export const orderSubtotal = (order: Order) => order.lines.reduce((sum, l) => sum + lineTotal(l), 0);
+
+/** Montant de la remise (arrondi au centime). */
+export const orderDiscount = (order: Order) => Math.round((orderSubtotal(order) * (order.discountPct ?? 0)) / 100);
+
+/** Total TTC à payer, remise déduite (hors pourboire). */
+export const orderTotal = (order: Order) => orderSubtotal(order) - orderDiscount(order);
+
+/** TVA incluse dans un montant TTC. */
+export const includedVat = (amount: number, rate: number) => Math.round((amount * rate) / (100 + rate));
+
+/** Jour local au format AAAA-MM-JJ. */
+export function dayKey(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export const openOrders = (state: AppState) => state.orders.filter((o) => o.status === 'ouverte');
 
@@ -89,11 +105,14 @@ export function startOfDay(ts = Date.now()) {
 export function salesStats(orders: Order[]) {
   const paid = orders.filter((o) => o.status === 'payee');
   const revenue = paid.reduce((sum, o) => sum + orderTotal(o), 0);
+  const tips = paid.reduce((sum, o) => sum + (o.tip ?? 0), 0);
+  const discounts = paid.reduce((sum, o) => sum + orderDiscount(o), 0);
   const guests = paid.reduce((sum, o) => sum + o.guests, 0);
   const byPayment: Record<PaymentMethod, number> = { especes: 0, carte: 0, autre: 0 };
   const itemCounts = new Map<string, { name: string; qty: number; total: number }>();
   for (const o of paid) {
-    if (o.payment) byPayment[o.payment] += orderTotal(o);
+    // Encaissé par moyen de paiement : total payé + pourboire.
+    if (o.payment) byPayment[o.payment] += orderTotal(o) + (o.tip ?? 0);
     for (const l of o.lines) {
       const entry = itemCounts.get(l.itemId) ?? { name: l.name, qty: 0, total: 0 };
       entry.qty += l.qty;
@@ -105,9 +124,42 @@ export function salesStats(orders: Order[]) {
     count: paid.length,
     cancelled: orders.filter((o) => o.status === 'annulee').length,
     revenue,
+    tips,
+    discounts,
     guests,
     average: paid.length ? Math.round(revenue / paid.length) : 0,
     byPayment,
     topItems: [...itemCounts.values()].sort((a, b) => b.qty - a.qty).slice(0, 5),
   };
+}
+
+/** Clôture (Z de caisse) d'une journée donnée, à partir des commandes clôturées ce jour-là. */
+export function buildClosure(state: AppState, date: string, now = Date.now()): DailyClosure {
+  const ofDay = state.orders.filter((o) => o.status !== 'ouverte' && o.paidAt !== null && dayKey(o.paidAt) === date);
+  const st = salesStats(ofDay);
+  return {
+    date,
+    closedAt: now,
+    count: st.count,
+    cancelled: st.cancelled,
+    guests: st.guests,
+    revenue: st.revenue,
+    tips: st.tips,
+    discounts: st.discounts,
+    byPayment: st.byPayment,
+    topItems: st.topItems,
+  };
+}
+
+/** Jours passés ayant des commandes clôturées mais pas encore de clôture (du plus ancien au plus récent). */
+export function daysToClose(state: AppState, now = Date.now()): string[] {
+  const today = dayKey(now);
+  const done = new Set(state.closures.map((c) => c.date));
+  const days = new Set<string>();
+  for (const o of state.orders) {
+    if (o.status === 'ouverte' || o.paidAt === null) continue;
+    const d = dayKey(o.paidAt);
+    if (d < today && !done.has(d)) days.add(d);
+  }
+  return [...days].sort();
 }
