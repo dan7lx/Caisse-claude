@@ -27,9 +27,6 @@ export default function TablesScreen() {
 
   const zones = useMemo(() => Array.from(new Set(state.tables.map((t) => t.zone || 'Salle'))), [state.tables]);
 
-  // Dans un lobby, la cuisine et le bar arrivent directement sur leurs tickets.
-  if (device.lobby && device.role !== 'serveur') return <Redirect href="/cuisine" />;
-
   const gap = small ? 8 : 12;
   const contentWidth = Math.min(width, 1200) - 32;
   const columns = columnsFor(contentWidth, small ? 96 : 112, 7);
@@ -59,6 +56,10 @@ export default function TablesScreen() {
     dispatch(createOrder(id, table.id, tableLabel(table), serverRef.current));
     router.push(`/commande/${id}`);
   }, [dispatch, router]);
+
+  // Dans un lobby, la cuisine et le bar arrivent directement sur leurs tickets.
+  // (Placé après tous les hooks : React exige qu'ils soient appelés dans le même ordre à chaque rendu.)
+  if (device.lobby && device.role !== 'serveur') return <Redirect href="/cuisine" />;
 
   if (state.tables.length === 0) {
     return (

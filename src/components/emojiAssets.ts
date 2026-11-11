@@ -1,5 +1,4 @@
 // Fichier généré : emojis 3D « Fluent Emoji » (Microsoft, licence MIT, assets/emoji/LICENSE-fluentui-emoji.txt).
-/* eslint-disable */
 import type { ImageSourcePropType } from 'react-native';
 
 export const EMOJI_3D: Record<string, ImageSourcePropType> = {

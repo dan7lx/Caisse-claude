@@ -1,0 +1,8 @@
+{
+  "name": "caisse-resto-e2e",
+  "private": true,
+  "description": "Outils des tests de bout en bout (serveur de lobby de test). Playwright est fourni par l'environnement cloud.",
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}

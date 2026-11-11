@@ -13,9 +13,10 @@ import { colors } from '../../theme';
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
 function tabIcon(name: IoniconName) {
-  return ({ color, size }: { color: ColorValue; size: number }) => (
+  const TabIcon = ({ color, size }: { color: ColorValue; size: number }) => (
     <Ionicons name={name} color={typeof color === 'string' ? color : undefined} size={size} />
   );
+  return TabIcon;
 }
 
 export default function TabsLayout() {

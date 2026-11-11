@@ -139,9 +139,12 @@ Emojis 3D : [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) de Micro
 ## Développement
 
 ```bash
-npm test            # tests : commandes, cuisine, encaissement, synchronisation, abonnement, codes
-npm run typecheck   # vérification TypeScript
+npm run verify      # TypeScript + lint + tests unitaires (à lancer après chaque modification)
+npm test            # tests unitaires : commandes, cuisine, encaissement, synchronisation, abonnement, codes
+npm run e2e         # tests de bout en bout dans un navigateur (voir tests/e2e/README.md)
 ```
+
+Mémoire du projet pour le développement assisté par IA : [`CLAUDE.md`](CLAUDE.md) (règles de travail) et [`docs/claude.md`](docs/claude.md) (architecture, état des fonctionnalités, décisions, journal).
 
 ```
 src/
@@ -158,5 +161,7 @@ src/
   sync/backend.ts         appels au serveur Supabase, liens d’invitation
   license/                abonnement, rappels, codes d’activation, droits gérant / admin
   components/             interface (thème, pavé numérique, calendrier, verrous…)
+  print/                  ticket, bons, rapports : ESC/POS (Bluetooth) et HTML
 supabase/schema.sql       tables et fonctions du serveur de synchronisation
+tests/e2e/                scénarios de bout en bout (Playwright) et serveurs de test
 ```

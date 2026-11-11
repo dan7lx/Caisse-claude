@@ -42,3 +42,6 @@ yarn-error.*
 
 # archive Netlify générée
 caisse-resto-netlify.zip
+
+# captures des tests de bout en bout
+tests/e2e/captures/

@@ -17,9 +17,10 @@ import type { Role, ServerConfig } from '../store/types';
 import { makeInviteLink } from '../sync/backend';
 import { colors, fonts, roleEmoji, roleLabel } from '../theme';
 
-const ROLE_OPTIONS = (['serveur', 'cuisine', 'bar'] as Role[]).map((r) => ({ value: r, label: `${roleEmoji[r]} ${roleLabel[r]}` }));
 import { haptic } from '../utils/haptics';
 import { useLayout } from '../utils/layout';
+
+const ROLE_OPTIONS = (['serveur', 'cuisine', 'bar'] as Role[]).map((r) => ({ value: r, label: `${roleEmoji[r]} ${roleLabel[r]}` }));
 
 type Mode = 'creer' | 'rejoindre';
 
