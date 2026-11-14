@@ -131,7 +131,7 @@ docs/captures/              Captures d’écran du README
 - Réduction progressive des 39 avertissements lint (voir § 6).
 
 ### Restant / idées 📋 (par priorité ; rien n’est engagé sans l’accord du propriétaire)
-1. **Mise en service du serveur** : le propriétaire exécute `supabase/schema.sql`, définit le mot de passe, puis fournit l’URL et la clé publique → reconstruire le zip avec `EXPO_PUBLIC_SUPABASE_URL/KEY` (voir `docs/paiements.md`). Sans cela, le paiement affiche « non configuré ».
+1. **Mise en service du serveur** : URL et clé publique reçues le 2026-11-14 (voir § 8), zip reconstruit avec. À confirmer par le propriétaire : `schema.sql` exécuté, mot de passe défini, premier paiement de test réussi (le réseau de l’environnement cloud bloque `*.supabase.co` : impossible de vérifier d’ici).
 2. **Sécurité des codes** (voir § 7) : le code admin (administration locale) et le code démo sont publics → en choisir de nouveaux, retirer les codes en clair des tests unitaires, et/ou rendre le dépôt privé.
 3. Tests sur vrais appareils (iPhone, Android).
 6. Lancer `verify` (et éventuellement `e2e`) automatiquement à chaque push (GitHub Actions).
@@ -179,7 +179,13 @@ docs/captures/              Captures d’écran du README
 ```bash
 npm run verify          # types + lint + tests unitaires (obligatoire après chaque modification)
 CAISSE_DEMO_CODE=… npm run e2e   # bout en bout (build de test + PostgreSQL + 5 vérifications)
-npm run build:netlify   # zip à déposer sur Netlify
+npm run build:netlify   # zip : TOUJOURS avec le serveur du propriétaire (ci-dessous), sinon paiement et lobby non configurés
+
+# Zip de production (serveur Supabase du propriétaire ; URL et clé PUBLIQUE, faites pour être visibles) :
+EXPO_PUBLIC_SUPABASE_URL=https://hhppgimwnsoevmygqqst.supabase.co \
+EXPO_PUBLIC_SUPABASE_KEY=sb_publishable__jkyT4ckgFxojFzH5qMEKg_SxUMoif1 \
+EXPO_OFFLINE=1 CI=1 npm run build:netlify
+# Ne pas mettre ces variables dans un fichier .env : le build de test (npm run e2e) les lirait aussi.
 npm start               # serveur de développement Expo
 ```
 
@@ -187,6 +193,11 @@ npm start               # serveur de développement Expo
 
 > Une entrée par session, la plus récente en haut. Pour voir ce qui a changé depuis la dernière mise à jour de ce fichier :
 > `git log --oneline "$(git log -1 --format=%h -- docs/claude.md)"..HEAD`
+
+### 2026-11-14 — Mise en service du serveur Supabase
+- Guide pas à pas donné au propriétaire. Réglages du projet conseillés : Data API activée, « Automatically expose new tables » désactivé (le schéma donne ses droits lui-même), RLS automatique activé.
+- URL et clé publique reçues ; zip de production reconstruit avec (commande au § 8). Vérifié : le serveur est intégré au bundle, sans trace du serveur de test.
+- Non vérifié : appel réel au serveur (hôte bloqué par le réseau de l’environnement).
 
 ### 2026-11-11 — Paiement par virement, Espace créateur, TVA, retrait de l’impression
 - Retiré à la demande : impression (Bluetooth, AirPrint, écran Imprimante, boutons Imprimer, rapport), option « Addition », réglage TVA de la Gestion, anciens codes d’activation (désactivés avec l’accord du propriétaire).
