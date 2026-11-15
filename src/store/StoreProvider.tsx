@@ -481,7 +481,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   if (!loaded || !value) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ink }}>
-        <ActivityIndicator size="large" color={colors.gold} />
+        <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
   }

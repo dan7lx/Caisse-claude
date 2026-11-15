@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     backgroundColor: colors.ink,
-    borderColor: colors.gold,
+    borderColor: colors.accent,
     borderWidth: 1,
     borderRadius: 999,
     paddingVertical: 10,

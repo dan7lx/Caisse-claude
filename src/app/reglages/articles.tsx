@@ -1,6 +1,6 @@
 import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, SectionList, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, SectionList, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { Emoji3D } from '../../components/Emoji3D';
 import { EmojiPicker } from '../../components/EmojiPicker';
@@ -17,11 +17,12 @@ import {
   notify,
   SwitchRow,
 } from '../../components/ui';
+import { type ImageSource, pickProductPhoto } from '../../utils/pickLogo';
 import { deleteItem, moveItem, setItemAvailable, upsertItem } from '../../store/actions';
 import { ALLERGENS, COOKING_CHOICES, uid } from '../../store/defaults';
 import { useStore } from '../../store/StoreProvider';
 import type { MenuItem } from '../../store/types';
-import { colors, fonts, stationLabel } from '../../theme';
+import { colors, fonts, stationLabel, screenBg } from '../../theme';
 import { formatPrice, parsePrice, priceToInput } from '../../utils/format';
 
 interface Draft {
@@ -32,6 +33,7 @@ interface Draft {
   description: string;
   available: boolean;
   emoji: string;
+  photo: string | null;
   choices: string[];
   allergens: string[];
 }
@@ -66,6 +68,7 @@ function ArticlesScreen() {
       description: '',
       available: true,
       emoji: '',
+      photo: null,
       choices: [],
       allergens: [],
     });
@@ -78,6 +81,7 @@ function ArticlesScreen() {
     description: item.description,
     available: item.available,
     emoji: item.emoji,
+    photo: item.photo ?? null,
     choices: [...item.choices],
     allergens: [...item.allergens],
   });
@@ -97,12 +101,23 @@ function ArticlesScreen() {
         description: draft.description.trim(),
         available: draft.available,
         emoji: draft.emoji,
+        photo: draft.photo,
         choices: draft.choices,
         allergens: draft.allergens,
       }),
     );
     toast(draft.id ? 'Article modifié' : 'Article ajouté à la carte', '✅');
     setDraft(null);
+  };
+
+  const choosePhoto = async (source: ImageSource) => {
+    if (!draft) return;
+    try {
+      const photo = await pickProductPhoto(source);
+      if (photo) setDraft((d) => (d ? { ...d, photo } : d));
+    } catch (e) {
+      notify('Photo', e instanceof Error ? e.message : 'Impossible de charger la photo.');
+    }
   };
 
   const addChoice = () => {
@@ -132,7 +147,7 @@ function ArticlesScreen() {
         options={{
           title: 'La carte',
           headerRight: () => (
-            <IconButton icon="add-circle" label="Ajouter un article" color={colors.gold} size={30} onPress={() => openNew()} style={styles.headerBtn} />
+            <IconButton icon="add-circle" label="Ajouter un article" color={colors.accent} size={30} onPress={() => openNew()} style={styles.headerBtn} />
           ),
         }}
       />
@@ -186,7 +201,7 @@ function ArticlesScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Modifier ${item.name}`}
             onPress={() => setDraft(toDraft(item))}
-            android_ripple={{ color: colors.goldSoft }}
+            android_ripple={{ color: colors.accentSoft }}
             style={({ pressed }) => [
               styles.item,
               index === 0 && styles.itemFirst,
@@ -195,7 +210,11 @@ function ArticlesScreen() {
             ]}
           >
             <View style={[styles.itemEmoji, !item.available && styles.dim]}>
-              <Emoji3D emoji={item.emoji || section.category.emoji} size={34} />
+              {item.photo ? (
+                <Image source={{ uri: item.photo }} style={styles.thumb} accessibilityLabel={`Photo de ${item.name}`} />
+              ) : (
+                <Emoji3D emoji={item.emoji || section.category.emoji} size={34} />
+              )}
             </View>
             <View style={styles.flex}>
               <Text style={[styles.itemName, !item.available && styles.strike]} numberOfLines={1}>
@@ -238,6 +257,22 @@ function ArticlesScreen() {
       >
         {draft ? (
           <>
+            <Text style={styles.label}>Photo du produit</Text>
+            <View style={styles.photoRow}>
+              {draft.photo ? (
+                <Image source={{ uri: draft.photo }} style={styles.photo} accessibilityLabel="Photo du produit" />
+              ) : (
+                <View style={[styles.photo, styles.photoEmpty]}>
+                  <Emoji3D emoji={draft.emoji || draftCategory?.emoji || '🍽️'} size={40} />
+                </View>
+              )}
+              <View style={styles.photoActions}>
+                <Button title="Galerie" icon="images-outline" small variant="secondary" onPress={() => choosePhoto('galerie')} />
+                <Button title="Appareil photo" icon="camera-outline" small variant="secondary" onPress={() => choosePhoto('appareil')} />
+                {draft.photo ? <Button title="Retirer la photo" icon="trash-outline" small variant="ghost" onPress={() => setDraft({ ...draft, photo: null })} /> : null}
+              </View>
+            </View>
+            <Text style={styles.photoHint}>La photo remplace l’emoji sur l’écran de commande. Sans photo, l’emoji ci-dessous est utilisé.</Text>
             <EmojiPicker value={draft.emoji} inherited={draftCategory?.emoji ?? '🍽️'} onChange={(emoji) => setDraft({ ...draft, emoji })} />
             <Field label="Nom" value={draft.name} onChangeText={(name) => setDraft({ ...draft, name })} placeholder="ex : Burger maison" />
             <Field
@@ -268,7 +303,7 @@ function ArticlesScreen() {
                   key={c}
                   label={`${c}  ✕`}
                   selected
-                  color={colors.goldDeep}
+                  color={colors.accentText}
                   onPress={() => setDraft({ ...draft, choices: draft.choices.filter((x) => x !== c) })}
                 />
               ))}
@@ -346,7 +381,13 @@ export default function ArticlesRoute() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  thumb: { width: 40, height: 40, borderRadius: 10 },
+  photoRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  photo: { width: 96, height: 96, borderRadius: 20, borderWidth: 1, borderColor: colors.border },
+  photoEmpty: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.field },
+  photoActions: { flex: 1, gap: 8, alignItems: 'flex-start' },
+  photoHint: { color: colors.muted, fontSize: 12, lineHeight: 17 },
+  screen: { flex: 1, ...screenBg },
   flex: { flex: 1 },
   headerBtn: { marginRight: 12 },
   top: { paddingTop: 12, gap: 10, width: '100%', maxWidth: 820, alignSelf: 'center' },
@@ -391,14 +432,14 @@ const styles = StyleSheet.create({
   },
   itemFirst: { borderTopWidth: 1, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
   itemLast: { borderBottomLeftRadius: 16, borderBottomRightRadius: 16 },
-  itemPressed: { backgroundColor: colors.goldSoft },
-  itemEmoji: { width: 46, height: 46, borderRadius: 14, backgroundColor: colors.goldSoft, alignItems: 'center', justifyContent: 'center' },
+  itemPressed: { backgroundColor: colors.accentSoft },
+  itemEmoji: { width: 46, height: 46, borderRadius: 14, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   dim: { opacity: 0.4 },
   itemName: { fontSize: 16, fontWeight: '700', color: colors.text },
   strike: { textDecorationLine: 'line-through', color: colors.muted },
   tags: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 3 },
-  itemPrice: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 15, color: colors.goldDeep },
-  tag: { fontSize: 11, fontWeight: '700', color: colors.goldDeep, backgroundColor: colors.goldSoft, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
+  itemPrice: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 15, color: colors.accentText },
+  tag: { fontSize: 11, fontWeight: '700', color: colors.accentText, backgroundColor: colors.accentSoft, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
   tagWarn: { color: colors.danger, backgroundColor: colors.dangerSoft },
   tagOff: { color: colors.muted, backgroundColor: colors.line },
   addBtn: { marginTop: 24 },
@@ -415,7 +456,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.field,
     color: colors.text,
   },
   tools: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

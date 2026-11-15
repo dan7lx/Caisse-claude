@@ -50,7 +50,7 @@ Elle fonctionne sur **iPhone, Android** et **navigateur** (à installer sur l’
 
 **Gestion**, protégée par le **code gérant** :
 - **identité & logo** : le gérant ajoute le logo de son commerce (affiché sur le plan de salle, la Gestion et l’écran d’accueil), le nom, le slogan, l’adresse, le téléphone, le **N° de TVA de l’entreprise** et le message du bas de ticket ;
-- **carte complète** : articles avec emoji 3D, prix, description, **choix à la commande**, **14 allergènes**, disponibilité, duplication et ordre d’affichage ; catégories avec emoji, couleur et poste (cuisine ou bar) ;
+- **carte complète** : articles avec **photo** (galerie ou appareil photo) ou emoji 3D, prix, description, **choix à la commande**, **14 allergènes**, disponibilité, duplication et ordre d’affichage ; catégories avec emoji, couleur et poste (cuisine ou bar) ;
 - tables et zones, **équipe & postes**, lobby de l’équipe ;
 - préférences (devise, alerte cuisine, retour au plan de salle, **sécurité / verrouillage**) ;
 - **historique & statistiques** : aujourd’hui, clôtures, tout ; chiffre d’affaires, tickets, couverts, ticket moyen, **pourboires**, remises, répartition par mode de paiement, meilleures ventes, **TVA collectée** (par taux) ;
@@ -141,6 +141,8 @@ Pour que plusieurs téléphones partagent les commandes, il faut un serveur. L�
 Mise en page vérifiée sur iPhone SE (320 px), Galaxy S8 (360 px), iPhone 13 (390 px), Pixel 7 (412 px) et iPad en paysage : grilles qui s’adaptent à la largeur, libellés raccourcis sur petit écran, ticket affiché à côté de la carte sur tablette. Retour haptique (vibration légère) sur iPhone et Android, notifications éphémères, transitions animées.
 
 ## Crédits
+
+Police : [Space Grotesk](https://github.com/floriankarsten/space-grotesk), licence SIL OFL (`assets/fonts/LICENSE-Space-Grotesk-OFL.txt`).
 
 Emojis 3D : [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) de Microsoft, licence MIT (`assets/emoji/LICENSE-fluentui-emoji.txt`).
 

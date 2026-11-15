@@ -344,6 +344,18 @@ describe('abonnement', () => {
   });
 });
 
+describe('photos de produits', () => {
+  it('la photo reste sur l’article mais n’est pas recopiée dans les commandes', () => {
+    const { s, burger } = setup();
+    const withPhoto = { ...burger, photo: 'data:image/jpeg;base64,AAAA' };
+    const s2 = reduceAll(s, [{ t: 'upsertItem', item: withPhoto }]);
+    assert.equal(s2.items.find((i) => i.id === burger.id)?.photo, withPhoto.photo);
+    const op = addItem('o1', withPhoto, 'cuisine');
+    assert.equal(JSON.stringify(op).includes('base64'), false);
+    assert.equal(order(reduce(s2, op)).lines[0].name, 'Burger maison');
+  });
+});
+
 describe('code créateur', () => {
   it('protège la suppression des données : refuse les mauvais codes', () => {
     for (const c of ['0000', '1234', '9999', '']) assert.equal(isCreatorCode(c), false);

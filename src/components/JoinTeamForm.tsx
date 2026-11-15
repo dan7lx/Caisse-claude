@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   label: { fontWeight: '700', fontSize: 14, marginTop: 4 },
   input: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
   inputDark: { backgroundColor: colors.ink, borderColor: colors.ink3, color: colors.onDark },
-  inputLight: { backgroundColor: '#FFFFFF', borderColor: colors.border, color: colors.text },
+  inputLight: { backgroundColor: colors.field, borderColor: colors.border, color: colors.text },
   server: { gap: 10, marginTop: 6 },
   hint: { fontSize: 13 },
   error: { color: '#E8857C', fontWeight: '700' },

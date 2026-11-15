@@ -2,7 +2,7 @@
 
 > Source de vérité pour toute session de développement assisté par IA.
 > Chargée automatiquement par `CLAUDE.md`. À tenir à jour après chaque modification importante (voir CLAUDE.md § 4).
-> Dernière mise à jour : 2026-11-11 (paiements et licences).
+> Dernière mise à jour : 2026-11-15 (design verre sombre, photos de produits).
 
 ## 1. Le produit en bref
 
@@ -22,7 +22,7 @@ Propriétaire (« créateur ») : vend l’application sous abonnement (45,99 �
 | Langage | TypeScript strict | 6.0 |
 | Stockage local | AsyncStorage (localStorage sur le web) | 2.2 |
 | Synchronisation d’équipe, paiements, licences | Supabase (PostgreSQL + fonctions RPC, pgcrypto), appelé en `fetch` | — |
-| Polices | Playfair Display (`@expo-google-fonts`) | — |
+| Polices | Space Grotesk (SIL OFL), fichiers locaux `assets/fonts/` | — |
 | Emojis 3D | Fluent Emoji (MIT), PNG dans `assets/emoji/` | — |
 | Tests unitaires | `node:test` via `tsx --test` | — |
 | Tests de bout en bout | Playwright + Chromium (fournis par l’environnement) | — |
@@ -54,7 +54,7 @@ src/
     selectors.ts            Calculs dérivés (totaux, TVA, stats, tickets cuisine, clôtures)
     defaults.ts             Données de démo, `normalize` (migration des anciennes données)
     StoreProvider.tsx       État, sauvegarde, boucle de synchro, session gérant, clôture de minuit, useNow
-    store.test.ts           Tests unitaires (43)
+    store.test.ts           Tests unitaires (44)
   sync/backend.ts           Appels RPC Supabase, liens d’invitation
   license/license.ts        Statut d’abonnement, démo, rappel, codes démo/admin/créateur, reconnaissance des clés
   license/server.ts         Client du serveur de paiements et licences (RPC), règles locales (clé, sync, liens WhatsApp)
@@ -66,7 +66,7 @@ src/
                             PaymentFlow.tsx (paiement client), CheckoutSheet.tsx (encaissement + TVA),
                             CreatorGate.tsx (code créateur), creator/ (fiches de l’Espace créateur)
   labels.ts                 Libellés sans React Native (utilisables dans les tests)
-  theme.ts                  Couleurs, polices, styles d’état
+  theme.ts                  Thème « verre sombre » : couleurs, polices, fonds (`screenBg`, `heroGlow`, `frosted`, `accentGradient`), `readableOn`
   config.ts                 Prix, empreintes des codes, IBAN, support, serveur intégré
 supabase/schema.sql         Tables + fonctions RPC du lobby, des paiements, clés et licences (idempotent)
 docs/paiements.md           Guide du créateur : mise en service Supabase, travail quotidien, règles, sécurité
@@ -118,6 +118,8 @@ docs/captures/              Captures d’écran du README
 - Espace créateur (`/createur`, mot de passe serveur) : à traiter, confirmation, refus, génération et envoi WhatsApp de la clé, clients et licences (couleurs, révocation), historique des paiements, réglages modifiables (commerce, prénom et nom, IBAN, titulaire, WhatsApp, prix, mot de passe).
 - Administration locale (code admin) : droits du gérant, réinitialisation du code gérant, fermeture du lobby.
 - Code créateur pour toute suppression de données.
+- Design « verre sombre » (2026-11-15) : fond noir bleuté avec halos, panneaux translucides, accent bleu glacier, Space Grotesk, couleurs d’état vives.
+- Photos de produits : galerie ou appareil photo, recadrage carré 240 px JPEG, affichées à la place de l’emoji (carte, écran de commande).
 - Contact support WhatsApp / téléphone 24 h/24.
 - PWA Netlify installable sur iPhone ; mise en page vérifiée du 320 px à l’iPad.
 - Outillage : `npm run verify` (types + lint + tests), `npm run e2e` (5 vérifications : paiement, service, abonnement + lobby, écrans, serveur), mémoire IA (ce fichier + CLAUDE.md).
@@ -153,6 +155,8 @@ docs/captures/              Captures d’écran du README
 | D12 | Fonctions du créateur : mot de passe à chaque appel, sans session serveur | Simple, rien à stocker sur l’iPhone | Réponse `{ error }` (pas d’exception) pour enregistrer les échecs ; blocage 10 min après 8 erreurs |
 | D13 | TVA choisie à l’encaissement et ajoutée (prix HT) | Demande du propriétaire (taux belges 0/6/12/21) | `vatRate` sur la commande ; ne jamais recalculer les anciennes commandes |
 | D14 | Code créateur (empreinte) pour supprimer des données | Seul le propriétaire peut effacer | Ne jamais écrire le code en clair dans le dépôt |
+| D15 | Thème sombre unique dans `theme.ts` ; effets de verre (dégradés, flou) réservés au web via `webOnly` | La cible est la PWA ; le flou sur chaque carte ralentirait les listes | Tout texte est clair ; seul `colors.onAccent` est foncé (sur accent ou couleur vive). Fond blanc interdit hors « papier » du ticket. Flou (`frosted`) seulement sur les éléments fixes |
+| D16 | Photo de produit = data URI JPEG 240 px dans `MenuItem.photo` | Pas de stockage de fichiers à gérer, synchro lobby gratuite | `addItem` retire la photo des lignes de commande ; ne pas augmenter la taille (limite ≈ 5 Mo du stockage web) |
 | D10 | Lint Expo avec les règles « React Compiler » en avertissement | Le React Compiler n’est pas activé ; le code utilise volontairement des refs à jour et `Date.now` pour les chronos | 0 erreur exigée ; avertissements à réduire progressivement |
 | D11 | Libellés sans React Native dans `src/labels.ts` | Les tests `tsx` ne peuvent pas importer React Native | La logique testée ne doit pas importer `react-native` |
 
@@ -193,6 +197,13 @@ npm start               # serveur de développement Expo
 
 > Une entrée par session, la plus récente en haut. Pour voir ce qui a changé depuis la dernière mise à jour de ce fichier :
 > `git log --oneline "$(git log -1 --format=%h -- docs/claude.md)"..HEAD`
+
+### 2026-11-15 — Design « verre sombre », photos de produits, nouveau code créateur
+- Skill fourni par le propriétaire (`premium-3d-glass`, générateur de site vitrine 3D) : son langage visuel est repris (verre, palette, Space Grotesk), sans le moteur Three.js (trop lourd pour une caisse en service).
+- `theme.ts` réécrit ; jetons renommés `gold*` → `accent*`, `onAccent` ajouté ; Playfair Display retirée.
+- Photos de produits (galerie / appareil photo) dans Gestion › Articles.
+- Empreinte du code créateur remplacée (nouveau code donné par le propriétaire, jamais écrit en clair).
+- Vérifications : `npm run verify` (44 tests) et `npm run e2e` (voir résultat dans le compte rendu de session).
 
 ### 2026-11-14 — Mise en service du serveur Supabase
 - Guide pas à pas donné au propriétaire. Réglages du projet conseillés : Data API activée, « Automatically expose new tables » désactivé (le schéma donne ses droits lui-même), RLS automatique activé.

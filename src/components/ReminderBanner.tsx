@@ -70,7 +70,7 @@ export function StatusStrip() {
         )}
       </View>
       {narrow ? (
-        <Ionicons name="chevron-forward" size={22} color={colors.gold} />
+        <Ionicons name="chevron-forward" size={22} color={colors.accent} />
       ) : (
         <View style={styles.cta}>
           <Text style={styles.ctaText}>{demo ? 'S’abonner' : 'Payer'}</Text>
@@ -85,18 +85,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#2B2213',
+    backgroundColor: 'rgba(18, 21, 31, 0.92)',
     borderTopWidth: 1,
-    borderTopColor: colors.goldDeep,
+    borderTopColor: colors.accentText,
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
-  urgent: { backgroundColor: '#3A1714', borderTopColor: colors.danger },
+  urgent: { backgroundColor: 'rgba(70, 18, 24, 0.94)', borderTopColor: colors.danger },
   flex: { flex: 1 },
   title: { color: colors.onDark, fontWeight: '800', fontSize: 14 },
-  kicker: { color: colors.gold, fontWeight: '800', fontSize: 11, letterSpacing: 1 },
+  kicker: { color: colors.accent, fontWeight: '800', fontSize: 11, letterSpacing: 1 },
   timer: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums', 'tabular-nums'], color: colors.onDark, fontSize: 20 },
   text: { color: colors.onDarkMuted, fontSize: 12, marginTop: 1 },
-  cta: { backgroundColor: colors.gold, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
-  ctaText: { color: colors.ink, fontWeight: '900', fontSize: 13 },
+  cta: { backgroundColor: colors.accent, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 },
+  ctaText: { color: colors.onAccent, fontWeight: '900', fontSize: 13 },
 });

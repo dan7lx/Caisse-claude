@@ -1,24 +1,34 @@
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
+export type ImageSource = 'galerie' | 'appareil';
+
+interface SquareOptions {
+  size: number;
+  format: SaveFormat;
+  compress: number;
+  mime: string;
+}
+
 /**
- * Ouvre la galerie, recadre en carré et réduit le logo à 256 px.
- * Retourne l'image en data URI (partagée avec l'équipe du lobby), ou null si annulé.
+ * Ouvre la galerie ou l'appareil photo, recadre en carré centré et réduit l'image.
+ * Retourne l'image en data URI (enregistrée avec les données, partagée avec l'équipe du lobby), ou null si annulé.
  */
-export async function pickLogo(): Promise<string | null> {
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+async function pickSquare(source: ImageSource, o: SquareOptions): Promise<string | null> {
+  const permission =
+    source === 'appareil' ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted && permission.canAskAgain === false) {
-    throw new Error('Autorisez l’accès aux photos dans les réglages du téléphone.');
+    throw new Error(
+      source === 'appareil'
+        ? 'Autorisez l’accès à l’appareil photo dans les réglages du téléphone.'
+        : 'Autorisez l’accès aux photos dans les réglages du téléphone.',
+    );
   }
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['images'],
-    allowsEditing: true,
-    aspect: [1, 1],
-    quality: 1,
-  });
+  const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 1 };
+  const result = source === 'appareil' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
   if (result.canceled || !result.assets[0]) return null;
   const asset = result.assets[0];
-  const side = Math.min(asset.width || 256, asset.height || 256);
+  const side = Math.min(asset.width || o.size, asset.height || o.size);
   const actions = [];
   // Recadrage carré centré (l'éditeur n'existe pas sur le web).
   if (asset.width && asset.height && asset.width !== asset.height) {
@@ -31,8 +41,19 @@ export async function pickLogo(): Promise<string | null> {
       },
     });
   }
-  actions.push({ resize: { width: 256, height: 256 } });
-  const out = await manipulateAsync(asset.uri, actions, { compress: 0.85, format: SaveFormat.PNG, base64: true });
+  actions.push({ resize: { width: o.size, height: o.size } });
+  const out = await manipulateAsync(asset.uri, actions, { compress: o.compress, format: o.format, base64: true });
   if (!out.base64) throw new Error('Image illisible.');
-  return `data:image/png;base64,${out.base64}`;
+  return `data:${o.mime};base64,${out.base64}`;
 }
+
+/** Logo du commerce : carré de 256 px (PNG, fond transparent conservé). */
+export const pickLogo = (): Promise<string | null> =>
+  pickSquare('galerie', { size: 256, format: SaveFormat.PNG, compress: 0.85, mime: 'image/png' });
+
+/**
+ * Photo d'un produit : carré de 240 px en JPEG léger (environ 10 à 20 Ko), pour que la carte entière
+ * reste petite dans la mémoire du téléphone et dans la synchronisation du lobby.
+ */
+export const pickProductPhoto = (source: ImageSource): Promise<string | null> =>
+  pickSquare(source, { size: 240, format: SaveFormat.JPEG, compress: 0.6, mime: 'image/jpeg' });

@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, shadow, readableOn, accentGradient } from '../theme';
 import { haptic } from '../utils/haptics';
 import { Emoji3D } from './Emoji3D';
 
@@ -30,12 +30,12 @@ export type IconName = React.ComponentProps<typeof Ionicons>['name'];
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'dark' | 'success' | 'ghost';
 
 const buttonColors: Record<ButtonVariant, { bg: string; fg: string; border: string }> = {
-  primary: { bg: colors.gold, fg: colors.ink, border: colors.gold },
+  primary: { bg: colors.accent, fg: colors.onAccent, border: colors.accent },
   secondary: { bg: colors.card, fg: colors.text, border: colors.border },
   danger: { bg: colors.danger, fg: '#FFFFFF', border: colors.danger },
   dark: { bg: colors.ink, fg: colors.onDark, border: colors.ink },
-  success: { bg: colors.free, fg: '#FFFFFF', border: colors.free },
-  ghost: { bg: 'transparent', fg: colors.goldDeep, border: 'transparent' },
+  success: { bg: colors.free, fg: colors.onAccent, border: colors.free },
+  ghost: { bg: 'transparent', fg: colors.accentText, border: 'transparent' },
 };
 
 interface ButtonProps {
@@ -67,6 +67,7 @@ export function Button({ title, onPress, variant = 'primary', icon, disabled, sm
         small && styles.btnSmall,
         large && styles.btnLarge,
         { backgroundColor: c.bg, borderColor: c.border, opacity: disabled ? 0.4 : pressed ? 0.85 : 1 },
+        variant === 'primary' ? accentGradient : null,
         pressed && !disabled ? styles.pressedScale : null,
         style,
       ]}
@@ -121,7 +122,7 @@ export function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Texte en Playfair Display (titres). */
+/** Texte en Space Grotesk (titres). */
 export function Display({ children, style }: { children: React.ReactNode; style?: StyleProp<TextStyle> }) {
   return <Text style={[styles.display, style]}>{children}</Text>;
 }
@@ -164,7 +165,7 @@ export function SwitchRow({ label, value, onChange, hint }: SwitchRowProps) {
         accessibilityLabel={label}
         value={value}
         onValueChange={onChange}
-        trackColor={{ true: colors.gold, false: colors.border }}
+        trackColor={{ true: colors.accent, false: colors.border }}
         thumbColor="#FFFFFF"
       />
     </View>
@@ -222,7 +223,7 @@ interface ChipProps {
   icon?: IconName;
 }
 
-export function Chip({ label, selected, color = colors.ink, onPress, icon }: ChipProps) {
+export function Chip({ label, selected, color = colors.accent, onPress, icon }: ChipProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -233,8 +234,8 @@ export function Chip({ label, selected, color = colors.ink, onPress, icon }: Chi
         { borderColor: selected ? color : colors.border, backgroundColor: selected ? color : colors.card },
       ]}
     >
-      {icon ? <Ionicons name={icon} size={14} color={selected ? '#FFFFFF' : color} /> : null}
-      <Text style={[styles.chipText, { color: selected ? '#FFFFFF' : colors.text }]}>{label}</Text>
+      {icon ? <Ionicons name={icon} size={14} color={selected ? readableOn(color) : color} /> : null}
+      <Text style={[styles.chipText, { color: selected ? readableOn(color) : colors.text }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -263,12 +264,12 @@ export function Stepper({ value, onChange, min = 0, label }: StepperProps) {
         onPress={() => onChange(value - 1)}
         disabled={value <= min}
         size={30}
-        color={colors.ink}
+        color={colors.onAccent}
       />
       <Text style={styles.stepperValue} accessibilityLabel={`${label} : ${value}`}>
         {value}
       </Text>
-      <IconButton icon="add-circle" label={`Augmenter ${label}`} onPress={() => onChange(value + 1)} size={30} color={colors.goldDeep} />
+      <IconButton icon="add-circle" label={`Augmenter ${label}`} onPress={() => onChange(value + 1)} size={30} color={colors.accentText} />
     </View>
   );
 }
@@ -286,7 +287,7 @@ export function Empty({ icon, emoji, title, subtitle, children }: EmptyProps) {
   return (
     <View style={styles.empty}>
       <View style={styles.emptyIcon}>
-        {emoji ? <Emoji3D emoji={emoji} size={46} /> : <Ionicons name={icon} size={34} color={colors.goldDeep} />}
+        {emoji ? <Emoji3D emoji={emoji} size={46} /> : <Ionicons name={icon} size={34} color={colors.accentText} />}
       </View>
       <Text style={styles.emptyTitle}>{title}</Text>
       {subtitle ? <Text style={styles.emptySubtitle}>{subtitle}</Text> : null}
@@ -298,7 +299,7 @@ export function Empty({ icon, emoji, title, subtitle, children }: EmptyProps) {
 type NoticeTone = 'info' | 'warning' | 'danger' | 'success';
 
 const noticeTones: Record<NoticeTone, { bg: string; fg: string; icon: IconName }> = {
-  info: { bg: colors.goldSoft, fg: colors.goldDeep, icon: 'information-circle' },
+  info: { bg: colors.accentSoft, fg: colors.accentText, icon: 'information-circle' },
   warning: { bg: colors.readySoft, fg: colors.ready, icon: 'alarm' },
   danger: { bg: colors.dangerSoft, fg: colors.danger, icon: 'alert-circle' },
   success: { bg: colors.freeSoft, fg: colors.free, icon: 'checkmark-circle' },
@@ -367,13 +368,13 @@ interface ListRowProps {
   chevron?: boolean;
 }
 
-export function ListRow({ title, subtitle, emoji, icon, iconColor = colors.ink, right, onPress, chevron }: ListRowProps) {
+export function ListRow({ title, subtitle, emoji, icon, iconColor = colors.text, right, onPress, chevron }: ListRowProps) {
   return (
     <Pressable
       accessibilityRole={onPress ? 'button' : undefined}
       onPress={onPress}
       disabled={!onPress}
-      android_ripple={onPress ? { color: colors.goldSoft } : undefined}
+      android_ripple={onPress ? { color: colors.accentSoft } : undefined}
       style={({ pressed }) => [styles.row, pressed && onPress ? styles.rowPressed : null]}
     >
       {emoji ? (
@@ -390,7 +391,7 @@ export function ListRow({ title, subtitle, emoji, icon, iconColor = colors.ink, 
         {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
       </View>
       {right}
-      {chevron ? <Ionicons name="chevron-forward" size={20} color={colors.gold} /> : null}
+      {chevron ? <Ionicons name="chevron-forward" size={20} color={colors.accent} /> : null}
     </Pressable>
   );
 }
@@ -486,7 +487,7 @@ export function PinPad({
         accessibilityLabel={`${code.length} chiffres saisis`}
       >
         {Array.from({ length: dots }, (_, i) => (
-          <View key={i} style={[styles.pinDot, { borderColor: colors.gold }, i < code.length && { backgroundColor: colors.gold }]} />
+          <View key={i} style={[styles.pinDot, { borderColor: colors.accent }, i < code.length && { backgroundColor: colors.accent }]} />
         ))}
       </Animated.View>
       <Text style={styles.pinError} accessibilityLiveRegion="polite">
@@ -511,7 +512,7 @@ export function PinPad({
             {k === 'del' ? (
               <Ionicons name="backspace-outline" size={26} color={fg} />
             ) : k === 'ok' ? (
-              <Ionicons name="checkmark" size={30} color={colors.ink} />
+              <Ionicons name="checkmark" size={30} color={colors.onAccent} />
             ) : (
               <Text style={[styles.pinKeyText, { color: fg }]}>{k}</Text>
             )}
@@ -576,7 +577,7 @@ export const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 12,
     fontWeight: '800',
-    color: colors.goldDeep,
+    color: colors.accentText,
     textTransform: 'uppercase',
     letterSpacing: 1.6,
   },
@@ -593,25 +594,25 @@ export const styles = StyleSheet.create({
     paddingVertical: Platform.OS === 'ios' ? 13 : 9,
     fontSize: 16,
     color: colors.text,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.field,
   },
   inputMultiline: { minHeight: 80, textAlignVertical: 'top' },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   switchLabel: { fontSize: 15, fontWeight: '700', color: colors.text },
   segmented: {
     flexDirection: 'row',
-    backgroundColor: '#E9DFCC',
+    backgroundColor: colors.field,
     borderRadius: 14,
     padding: 4,
   },
   segmentedDark: { backgroundColor: colors.ink2 },
   segment: { flex: 1, paddingVertical: 10, borderRadius: 11, alignItems: 'center' },
-  segmentActive: { backgroundColor: colors.card, ...shadow },
-  segmentActiveDark: { backgroundColor: colors.gold },
+  segmentActive: { backgroundColor: colors.accent, ...accentGradient },
+  segmentActiveDark: { backgroundColor: colors.accent },
   segmentText: { fontSize: 14, fontWeight: '700', color: colors.muted },
   segmentTextDark: { color: colors.onDarkMuted },
-  segmentTextActive: { color: colors.text },
-  segmentTextActiveDark: { color: colors.ink },
+  segmentTextActive: { color: colors.onAccent },
+  segmentTextActiveDark: { color: colors.onAccent },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -631,7 +632,7 @@ export const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: colors.goldSoft,
+    backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -642,7 +643,7 @@ export const styles = StyleSheet.create({
   noticeText: { color: colors.text, fontSize: 14, lineHeight: 20 },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(22,18,15,0.55)' },
   modalSheet: {
-    backgroundColor: colors.bg,
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
     paddingHorizontal: 18,
@@ -674,8 +675,8 @@ export const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  rowPressed: { backgroundColor: colors.goldSoft },
-  rowEmoji: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.goldSoft },
+  rowPressed: { backgroundColor: colors.accentSoft },
+  rowEmoji: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accentSoft },
   rowIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   rowTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   rowSubtitle: { fontSize: 13, color: colors.muted, marginTop: 2 },
@@ -689,7 +690,7 @@ export const styles = StyleSheet.create({
   pinKey: { alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   pinKeyDark: { backgroundColor: colors.ink2, borderColor: colors.ink3 },
   pinKeyLight: { backgroundColor: colors.card, borderColor: colors.border },
-  pinKeyOk: { backgroundColor: colors.gold, borderColor: colors.gold },
+  pinKeyOk: { backgroundColor: colors.accent, borderColor: colors.accent },
   pinKeyPressed: { opacity: 0.6, transform: [{ scale: 0.95 }] },
   pinKeyText: { fontSize: 30, fontWeight: '500' },
 });

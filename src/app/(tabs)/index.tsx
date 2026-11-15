@@ -11,7 +11,7 @@ import { uid } from '../../store/defaults';
 import { openOrderForTable, orderTotal, tableLabel, tableState } from '../../store/selectors';
 import { useNow, useStore } from '../../store/StoreProvider';
 import type { Order, Table } from '../../store/types';
-import { colors, fonts, shadow, tableStateStyle } from '../../theme';
+import { colors, fonts, shadow, tableStateStyle, screenBg } from '../../theme';
 import { formatElapsed, formatPrice } from '../../utils/format';
 import { haptic } from '../../utils/haptics';
 import { columnsFor, useLayout } from '../../utils/layout';
@@ -139,7 +139,7 @@ const TableCard = memo(function TableCard({ table: t, order, now, currency, widt
       accessibilityRole="button"
       accessibilityLabel={`${tableLabel(t)}, ${st.label}`}
       onPress={() => onOpen(t)}
-      android_ripple={{ color: colors.goldSoft }}
+      android_ripple={{ color: colors.accentSoft }}
       style={({ pressed }) => [styles.table, compact && styles.tableCompact, { width }, pressed && styles.pressed]}
     >
       <View style={[styles.band, { backgroundColor: st.color }]} />
@@ -192,7 +192,7 @@ function Stat({ emoji, color, value, label }: { emoji: string; color: string; va
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, ...screenBg },
   content: { padding: 16, paddingBottom: 40, width: '100%', maxWidth: 1200, alignSelf: 'center' },
   summary: { flexDirection: 'row', gap: 10 },
   stat: {
@@ -233,5 +233,5 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 11, fontWeight: '800' },
   amount: { fontSize: 15, fontWeight: '800', color: colors.text },
   meta: { fontSize: 11, color: colors.muted },
-  metaFree: { fontSize: 12, color: colors.goldDeep, fontWeight: '700' },
+  metaFree: { fontSize: 12, color: colors.accentText, fontWeight: '700' },
 });

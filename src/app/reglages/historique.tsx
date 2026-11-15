@@ -12,7 +12,7 @@ import { clearHistory } from '../../store/actions';
 import { orderTotal, salesStats, startOfDay } from '../../store/selectors';
 import { useStore } from '../../store/StoreProvider';
 import type { PaymentMethod } from '../../store/types';
-import { colors, fonts, paymentLabel } from '../../theme';
+import { colors, fonts, paymentLabel, screenBg } from '../../theme';
 import { formatDate, formatPrice, formatTime } from '../../utils/format';
 
 type Period = 'jour' | 'clotures' | 'tout';
@@ -83,7 +83,7 @@ function HistoryScreen() {
               <Stat emoji="📊" label="Ticket moyen" value={p(stats.average)} />
             </View>
             <View style={styles.stats}>
-              <Stat emoji="👥" label="Couverts" value={String(stats.guests)} />
+              <Stat emoji="🪑" label="Couverts" value={String(stats.guests)} />
               <Stat emoji="🏷️" label="Remises" value={p(stats.discounts)} />
             </View>
             {stats.vat ? (
@@ -214,7 +214,7 @@ export default function HistoryRoute() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, ...screenBg },
   flex: { flex: 1 },
   content: { padding: 16, paddingBottom: 48, width: '100%', maxWidth: 820, alignSelf: 'center', gap: 4 },
   stats: { flexDirection: 'row', gap: 10, marginTop: 10 },

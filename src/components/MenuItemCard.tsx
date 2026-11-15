@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { MenuItem } from '../store/types';
 import { colors, fonts, shadow } from '../theme';
@@ -40,7 +40,7 @@ export const MenuItemCard = memo(function MenuItemCard({
         accessibilityLabel={`Ajouter ${item.name}, ${formatPrice(item.price, currency)}`}
         disabled={disabled}
         onPress={() => onAdd(item)}
-        android_ripple={{ color: colors.goldSoft }}
+        android_ripple={{ color: colors.accentSoft }}
         style={({ pressed }) => [
           styles.item,
           compact && styles.itemCompact,
@@ -52,7 +52,11 @@ export const MenuItemCard = memo(function MenuItemCard({
         <View style={[styles.bar, { backgroundColor: color }]} />
         <View style={styles.body}>
           <View style={styles.top}>
-            <Emoji3D emoji={emoji} size={compact ? 34 : 42} />
+            {item.photo ? (
+              <Image source={{ uri: item.photo }} style={compact ? styles.photoCompact : styles.photo} accessibilityLabel={`Photo de ${item.name}`} />
+            ) : (
+              <Emoji3D emoji={emoji} size={compact ? 34 : 42} />
+            )}
             {item.choices.length ? <Ionicons name="options-outline" size={16} color={colors.muted} /> : null}
           </View>
           <Text style={[styles.name, compact && styles.nameCompact]} numberOfLines={2}>
@@ -85,6 +89,8 @@ export const MenuItemCard = memo(function MenuItemCard({
 
 const styles = StyleSheet.create({
   wrap: { padding: 6 },
+  photo: { width: 56, height: 56, borderRadius: 14, borderWidth: 1, borderColor: colors.border },
+  photoCompact: { width: 44, height: 44, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
   item: {
     backgroundColor: colors.card,
     borderRadius: 18,
@@ -96,7 +102,7 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   itemCompact: { minHeight: 118, borderRadius: 16 },
-  selected: { borderColor: colors.gold, backgroundColor: '#FFF9EA' },
+  selected: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
   disabled: { opacity: 0.4 },
   pressed: { opacity: 0.8, transform: [{ scale: 0.97 }] },
   bar: { width: 5 },
@@ -104,7 +110,7 @@ const styles = StyleSheet.create({
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   name: { fontSize: 15, fontWeight: '700', color: colors.text, lineHeight: 19 },
   nameCompact: { fontSize: 14, lineHeight: 18 },
-  price: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 17, color: colors.goldDeep, marginTop: 'auto' },
+  price: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 17, color: colors.accentText, marginTop: 'auto' },
   priceCompact: { fontSize: 15 },
   // Laisse la place au bouton « − » en bas à droite.
   priceWithMinus: { marginRight: 40 },
@@ -115,12 +121,12 @@ const styles = StyleSheet.create({
     minWidth: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: colors.gold,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
   },
-  qtyText: { color: colors.ink, fontWeight: '900', fontSize: 15 },
+  qtyText: { color: colors.onAccent, fontWeight: '900', fontSize: 15 },
   minus: {
     position: 'absolute',
     right: 14,

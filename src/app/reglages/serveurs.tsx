@@ -10,7 +10,7 @@ import { hashStaffPin, identifyCode, identifyStaff } from '../../license/access'
 import { addServer, removeServer, renameServer, setStaff } from '../../store/actions';
 import { useStore } from '../../store/StoreProvider';
 import type { Role, StaffMember } from '../../store/types';
-import { colors, fonts, roleEmoji, roleLabel } from '../../theme';
+import { colors, fonts, roleEmoji, roleLabel, screenBg } from '../../theme';
 
 const ROLE_OPTIONS = (['serveur', 'cuisine', 'bar'] as Role[]).map((r) => ({ value: r, label: `${roleEmoji[r]} ${roleLabel[r]}` }));
 
@@ -72,7 +72,7 @@ function StaffScreen() {
                       setEditing(m);
                       setEditName(m.name);
                     }}
-                    android_ripple={{ color: colors.goldSoft }}
+                    android_ripple={{ color: colors.accentSoft }}
                     style={({ pressed }) => [styles.row, pressed && styles.pressed]}
                   >
                     <View style={styles.avatar}>
@@ -186,7 +186,7 @@ export default function StaffRoute() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, ...screenBg },
   content: { padding: 16, paddingBottom: 48, width: '100%', maxWidth: 800, alignSelf: 'center' },
   flex: { flex: 1 },
   help: { color: colors.muted, lineHeight: 20 },
@@ -199,8 +199,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  pressed: { backgroundColor: colors.goldSoft },
-  avatar: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.goldSoft, alignItems: 'center', justifyContent: 'center' },
+  pressed: { backgroundColor: colors.accentSoft },
+  avatar: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center' },
   name: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 18, color: colors.text },
   sub: { fontSize: 12, color: colors.muted, marginTop: 2 },
   card: { gap: 12 },
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 11,
     fontSize: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.field,
     color: colors.text,
   },
   pinScreen: { flex: 1, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },

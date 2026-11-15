@@ -6,7 +6,7 @@ import { VAT_RATES } from '../config';
 import { orderSubtotal, vatOn } from '../store/selectors';
 import { useStore } from '../store/StoreProvider';
 import type { Order, PaymentMethod } from '../store/types';
-import { colors, fonts, paymentLabel } from '../theme';
+import { accentGradient, colors, fonts, paymentLabel } from '../theme';
 import { formatPrice, parsePrice } from '../utils/format';
 import { haptic } from '../utils/haptics';
 import { Emoji3D } from './Emoji3D';
@@ -139,7 +139,7 @@ export function CheckoutSheet({ order, visible, onClose, onConfirm }: Props) {
         ) : null}
       </Section>
 
-      <Section emoji="👥" title="Partager l’addition">
+      <Section emoji="🍴" title="Partager l’addition">
         <View style={styles.splitRow}>
           <Stepper label="personnes" value={split} min={1} onChange={setSplit} />
           <Text style={styles.splitText}>{split > 1 ? `${p(Math.ceil(toPay / split))} par personne` : '1 personne'}</Text>
@@ -225,7 +225,7 @@ function Choice({ label, selected, onPress }: { label: string; selected: boolean
       }}
       style={[styles.choice, selected && styles.choiceActive]}
     >
-      {selected ? <Ionicons name="checkmark" size={14} color={colors.ink} /> : null}
+      {selected ? <Ionicons name="checkmark" size={14} color={colors.onAccent} /> : null}
       <Text style={[styles.choiceText, selected && styles.choiceTextActive]}>{label}</Text>
     </Pressable>
   );
@@ -233,7 +233,7 @@ function Choice({ label, selected, onPress }: { label: string; selected: boolean
 
 const styles = StyleSheet.create({
   head: { alignItems: 'center' },
-  label: { fontSize: 13, color: colors.goldDeep, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
+  label: { fontSize: 13, color: colors.accentText, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
   amount: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 44, color: colors.text },
   meta: { fontSize: 13, color: colors.muted, textAlign: 'center' },
   warning: { marginTop: 6, color: colors.ready, fontWeight: '700', textAlign: 'center' },
@@ -250,11 +250,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.field,
   },
-  choiceActive: { backgroundColor: colors.gold, borderColor: colors.gold },
+  choiceActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   choiceText: { fontWeight: '700', color: colors.text },
-  choiceTextActive: { color: colors.ink },
+  choiceTextActive: { color: colors.onAccent },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 11,
     fontSize: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.field,
     color: colors.text,
   },
   vatRow: { flexDirection: 'row', gap: 8 },
@@ -273,11 +273,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: colors.border,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.field,
   },
-  vatActive: { backgroundColor: colors.ink, borderColor: colors.gold },
+  vatActive: { backgroundColor: colors.accent, borderColor: colors.accent, ...accentGradient },
   vatText: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 20, color: colors.text },
-  vatTextActive: { color: colors.gold },
+  vatTextActive: { color: colors.onAccent },
   vatHint: { fontSize: 13, color: colors.ready, fontWeight: '700' },
   splitRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   splitText: { flex: 1, fontWeight: '700', color: colors.text },
@@ -290,9 +290,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: colors.border,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.field,
   },
-  methodActive: { backgroundColor: colors.ink, borderColor: colors.gold },
+  methodActive: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
   methodText: { fontWeight: '700', color: colors.text, fontSize: 13, textAlign: 'center' },
   methodTextActive: { color: colors.onDark },
   cash: { gap: 8 },

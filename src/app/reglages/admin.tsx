@@ -5,7 +5,7 @@ import { ManagerGate } from '../../components/ManagerGate';
 import { Button, Card, confirm, Notice, notify, SectionTitle, SwitchRow } from '../../components/ui';
 import { setManagerPin, setSecurity } from '../../store/actions';
 import { useStore } from '../../store/StoreProvider';
-import { colors, fonts } from '../../theme';
+import { colors, fonts, screenBg } from '../../theme';
 
 export default function AdminRoute() {
   return (
@@ -106,9 +106,9 @@ function AdminScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, ...screenBg },
   content: { padding: 16, paddingBottom: 48, width: '100%', maxWidth: 820, alignSelf: 'center', gap: 4 },
-  hero: { backgroundColor: '#2A0F0D', borderRadius: 22, padding: 20, borderWidth: 1, borderColor: colors.danger },
+  hero: { backgroundColor: colors.dangerSoft, borderRadius: 22, padding: 20, borderWidth: 1, borderColor: colors.danger },
   heroLabel: { color: '#F2A39B', fontSize: 11, fontWeight: '900', letterSpacing: 2 },
   heroTitle: { fontFamily: fonts.display, fontVariant: ['lining-nums'], color: colors.onDark, fontSize: 28, marginTop: 4 },
   heroSub: { color: colors.onDarkMuted, marginTop: 6 },

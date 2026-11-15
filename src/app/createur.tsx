@@ -13,7 +13,7 @@ import { Button, Empty, notify, Segmented } from '../components/ui';
 import { LICENSE_SERVER } from '../config';
 import { confirmedPayments, dashboardStats, licenseHealth, orderTodo, ordersToProcess } from '../license/dashboard';
 import { adminApi, type Dashboard, type PaymentOrder, type ServerLicense } from '../license/server';
-import { colors, fonts } from '../theme';
+import { colors, fonts, screenBg } from '../theme';
 import { formatPrice } from '../utils/format';
 import { haptic } from '../utils/haptics';
 
@@ -124,7 +124,7 @@ function CreatorDashboard({ password, onLogout }: { password: string; onLogout: 
   if (!data) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.gold} />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
@@ -149,12 +149,12 @@ function CreatorDashboard({ password, onLogout }: { password: string; onLogout: 
 
   return (
     <>
-      <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.gold} />}>
+      <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.accent} />}>
         <View style={styles.hero}>
           <View style={styles.heroTop}>
             <Text style={styles.heroLabel}>TABLEAU DE BORD</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="Verrouiller l’Espace créateur" onPress={onLogout} hitSlop={10}>
-              <Ionicons name="lock-closed" size={20} color={colors.gold} />
+              <Ionicons name="lock-closed" size={20} color={colors.accent} />
             </Pressable>
           </View>
           <Text style={styles.heroTitle}>{data.billing.business_name}</Text>
@@ -192,7 +192,7 @@ function CreatorDashboard({ password, onLogout }: { password: string; onLogout: 
 
         {tab === 'clients' ? (
           data.licenses.length === 0 ? (
-            <Empty icon="people-outline" emoji="👥" title="Aucun client" subtitle="Un client apparaît dès la confirmation de son premier paiement." />
+            <Empty icon="people-outline" emoji="🙋" title="Aucun client" subtitle="Un client apparaît dès la confirmation de son premier paiement." />
           ) : (
             data.licenses.map((l) => {
               const h = HEALTH[licenseHealth(l, data.now)];
@@ -279,10 +279,10 @@ function CreatorDashboard({ password, onLogout }: { password: string; onLogout: 
 function Kpi({ value, label, accent }: { value: string; label: string; accent?: boolean }) {
   return (
     <View style={[styles.kpi, accent && styles.kpiAccent]}>
-      <Text style={[styles.kpiValue, accent && { color: colors.ink }]} numberOfLines={1} adjustsFontSizeToFit>
+      <Text style={[styles.kpiValue, accent && { color: colors.onAccent }]} numberOfLines={1} adjustsFontSizeToFit>
         {value}
       </Text>
-      <Text style={[styles.kpiLabel, accent && { color: colors.ink }]}>{label}</Text>
+      <Text style={[styles.kpiLabel, accent && { color: colors.onAccent }]}>{label}</Text>
     </View>
   );
 }
@@ -307,12 +307,12 @@ function OrderRow({ order, note, onPress }: { order: PaymentOrder; note?: string
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, ...screenBg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   flex: { flex: 1 },
   content: { padding: 16, paddingBottom: 48, gap: 10, width: '100%', maxWidth: 820, alignSelf: 'center' },
   login: { flexGrow: 1, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 14 },
-  loginTitle: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 30, color: colors.gold },
+  loginTitle: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 30, color: colors.accent },
   loginText: { color: colors.onDarkMuted, textAlign: 'center', maxWidth: 340, lineHeight: 20 },
   loginInput: {
     width: '100%',
@@ -327,14 +327,14 @@ const styles = StyleSheet.create({
     fontSize: 17,
   },
   loginError: { color: '#E8857C', fontWeight: '700', textAlign: 'center', maxWidth: 360 },
-  hero: { backgroundColor: colors.ink, borderRadius: 22, padding: 18, borderWidth: 1, borderColor: colors.goldDeep, gap: 8 },
+  hero: { backgroundColor: colors.ink, borderRadius: 22, padding: 18, borderWidth: 1, borderColor: colors.accentText, gap: 8 },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  heroLabel: { color: colors.gold, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
+  heroLabel: { color: colors.accent, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
   heroTitle: { fontFamily: fonts.display, fontVariant: ['lining-nums'], color: colors.onDark, fontSize: 24 },
   heroAlert: { color: colors.onDark, fontSize: 13, fontWeight: '700' },
   kpis: { flexDirection: 'row', gap: 8 },
   kpi: { flex: 1, minWidth: 0, backgroundColor: colors.ink2, borderRadius: 14, padding: 10 },
-  kpiAccent: { backgroundColor: colors.gold },
+  kpiAccent: { backgroundColor: colors.accent },
   kpiValue: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 20, color: colors.onDark },
   kpiLabel: { color: colors.onDarkMuted, fontSize: 11, marginTop: 2 },
   item: {
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   itemNote: { fontSize: 12, fontWeight: '700', marginTop: 3 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   chip: { fontSize: 11, fontWeight: '800', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, overflow: 'hidden' },
-  total: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.goldSoft, borderRadius: 14, padding: 14 },
+  total: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.accentSoft, borderRadius: 14, padding: 14 },
   totalLabel: { fontWeight: '800', color: colors.text },
-  totalValue: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 24, color: colors.goldDeep },
+  totalValue: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 24, color: colors.accentText },
 });

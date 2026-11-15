@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusStrip } from '../../components/ReminderBanner';
 import { kitchenTickets, openOrders } from '../../store/selectors';
 import { useStore } from '../../store/StoreProvider';
-import { colors } from '../../theme';
+import { colors, frosted } from '../../theme';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -60,11 +60,11 @@ export default function TabsLayout() {
         screenOptions={{
           headerShown: false,
           sceneStyle: { backgroundColor: colors.bg },
-          tabBarStyle: { backgroundColor: colors.ink, borderTopColor: colors.ink3, height: 60 + insets.bottom },
-          tabBarActiveTintColor: colors.gold,
+          tabBarStyle: { backgroundColor: 'rgba(11, 13, 21, 0.86)', borderTopColor: colors.border, height: 60 + insets.bottom, ...frosted },
+          tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.onDarkMuted,
           tabBarLabelStyle: { fontWeight: '700', fontSize: narrow ? 10 : 11, letterSpacing: narrow ? 0 : 0.3 },
-          tabBarBadgeStyle: { backgroundColor: colors.ready, color: colors.ink, fontWeight: '800' },
+          tabBarBadgeStyle: { backgroundColor: colors.ready, color: colors.onAccent, fontWeight: '800' },
         }}
       >
         <Tabs.Screen

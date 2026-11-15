@@ -6,7 +6,7 @@ import { SubscriptionPanel } from '../components/SubscriptionPanel';
 import { Card, Notice, SectionTitle } from '../components/ui';
 import { formatCountdown, licenseStatus } from '../license/license';
 import { useNow, useStore } from '../store/StoreProvider';
-import { colors, fonts } from '../theme';
+import { colors, fonts, screenBg } from '../theme';
 
 export default function SubscriptionScreen() {
   const { state } = useStore();
@@ -69,17 +69,17 @@ export default function SubscriptionScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, ...screenBg },
   content: { padding: 16, paddingBottom: 48, width: '100%', maxWidth: 820, alignSelf: 'center', gap: 4 },
   hero: {
     backgroundColor: colors.ink,
     borderRadius: 22,
     padding: 20,
     borderWidth: 1,
-    borderColor: colors.goldDeep,
+    borderColor: colors.accentText,
     marginBottom: 10,
   },
-  heroLabel: { color: colors.gold, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
+  heroLabel: { color: colors.accent, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
   heroTitle: { fontFamily: fonts.display, fontVariant: ['lining-nums'], color: colors.onDark, fontSize: 28, marginTop: 4 },
   heroSub: { color: colors.onDarkMuted, marginTop: 6 },
   calendarNote: { color: colors.muted, fontSize: 13, marginTop: 12, lineHeight: 19 },

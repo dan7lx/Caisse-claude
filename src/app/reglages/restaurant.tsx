@@ -8,7 +8,7 @@ import { useToast } from '../../components/Toast';
 import { Button, Card, Chip, Field, notify, SectionTitle, SwitchRow } from '../../components/ui';
 import { updateSettings } from '../../store/actions';
 import { useStore } from '../../store/StoreProvider';
-import { colors } from '../../theme';
+import { colors, screenBg } from '../../theme';
 
 const AUTO_LOCK = [
   { value: -1, label: 'Automatique' },
@@ -81,7 +81,7 @@ function PreferencesScreen() {
         </View>
         <View style={styles.chips}>
           {AUTO_LOCK.map((o) => (
-            <Chip key={o.value} label={o.label} selected={autoLock === o.value} color={colors.goldDeep} onPress={() => setAutoLock(o.value)} />
+            <Chip key={o.value} label={o.label} selected={autoLock === o.value} color={colors.accentText} onPress={() => setAutoLock(o.value)} />
           ))}
         </View>
         <Text style={styles.hint}>
@@ -105,7 +105,7 @@ export default function PreferencesRoute() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, ...screenBg },
   content: { padding: 16, paddingBottom: 48, width: '100%', maxWidth: 720, alignSelf: 'center' },
   card: { gap: 14 },
   vatInfo: { color: colors.muted, fontSize: 13, lineHeight: 19 },

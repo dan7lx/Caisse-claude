@@ -29,7 +29,7 @@ export const DEMO_CODE_HASH = '7a17432dc32c35040f17cf39091772c12e167072d63a9ba75
  * suppression des données (partir de zéro, recharger la démo, effacer l'historique des tickets).
  * Voir license.ts › isCreatorCode. Le code lui-même n'est jamais écrit dans le dépôt.
  */
-export const CREATOR_CODE_HASH = '1ce0a2cc3634e3178b0623b89401c4e28910c8ce4de10881763e5453fa33096e';
+export const CREATOR_CODE_HASH = '6fc524c923f9c2f89851e27ec718a1ecd4b82913123bc946106b1c0e6e493ecc';
 
 /** Durée du mode démo, en heures. */
 export const DEMO_HOURS = 24;

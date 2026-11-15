@@ -47,7 +47,7 @@ export function TeamButton() {
       onPress={() => router.push('/equipe')}
       style={({ pressed }) => [styles.team, pressed && { opacity: 0.7 }]}
     >
-      <Ionicons name="people" size={16} color={colors.gold} />
+      <Ionicons name="people" size={16} color={colors.accent} />
       {compact && !lobby ? null : <Text style={styles.teamText}>{label}</Text>}
       <View style={[styles.dot, { backgroundColor: dot }]} />
       {pendingCount > 0 && sync.status !== 'ok' ? <Text style={styles.pending}>{pendingCount}</Text> : null}
@@ -57,10 +57,10 @@ export function TeamButton() {
 
 const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 36, height: 36, borderRadius: 10, borderWidth: 1, borderColor: colors.gold },
+  logo: { width: 36, height: 36, borderRadius: 10, borderWidth: 1, borderColor: colors.accent },
   titleSmall: { fontSize: 18 },
   title: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 21, color: colors.onDark },
-  subtitle: { fontSize: 11, color: colors.gold, fontWeight: '700', letterSpacing: 1.4, textTransform: 'uppercase' },
+  subtitle: { fontSize: 11, color: colors.accent, fontWeight: '700', letterSpacing: 1.4, textTransform: 'uppercase' },
   team: {
     flexDirection: 'row',
     alignItems: 'center',

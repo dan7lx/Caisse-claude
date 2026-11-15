@@ -27,7 +27,7 @@ import { addItem, cancelOrder, changeQty, moveOrderTable, payOrder, removeIfEmpt
 import { orderTotal, tableLabel } from '../../store/selectors';
 import { useStore } from '../../store/StoreProvider';
 import type { MenuItem, Order, OrderLine, PaymentMethod } from '../../store/types';
-import { colors, fonts, paymentLabel, shadow } from '../../theme';
+import { colors, fonts, paymentLabel, shadow, screenBg } from '../../theme';
 import { formatPrice } from '../../utils/format';
 import { haptic } from '../../utils/haptics';
 import { columnsFor, useLayout } from '../../utils/layout';
@@ -212,7 +212,7 @@ export default function OrderScreen() {
             <IconButton
               icon={searching ? 'close' : 'search'}
               label={searching ? 'Fermer la recherche' : 'Rechercher un article'}
-              color={colors.gold}
+              color={colors.accent}
               onPress={() => {
                 setSearching((v) => !v);
                 setSearch('');
@@ -226,7 +226,7 @@ export default function OrderScreen() {
       <View style={styles.catBar}>
         {searching ? (
           <View style={styles.searchBox}>
-            <Ionicons name="search" size={18} color={colors.gold} />
+            <Ionicons name="search" size={18} color={colors.accent} />
             <TextInput
               value={search}
               onChangeText={setSearch}
@@ -304,7 +304,7 @@ export default function OrderScreen() {
             style={({ pressed }) => [styles.summary, pressed && { opacity: 0.8 }]}
           >
             <View style={styles.summaryIcon}>
-              <Ionicons name="receipt" size={20} color={colors.gold} />
+              <Ionicons name="receipt" size={20} color={colors.accent} />
               {itemCount > 0 ? (
                 <View style={styles.summaryCount}>
                   <Text style={styles.summaryCountText}>{itemCount}</Text>
@@ -441,7 +441,7 @@ export default function OrderScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, ...screenBg },
   flex: { flex: 1 },
   full: { width: '100%' },
   headerBtn: { marginRight: 12 },
@@ -458,10 +458,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.ink3,
   },
-  catActive: { backgroundColor: colors.gold, borderColor: colors.gold },
+  catActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   catDot: { width: 10, height: 10, borderRadius: 5 },
   catText: { color: colors.onDark, fontWeight: '700', fontSize: 15 },
-  catTextActive: { color: colors.ink },
+  catTextActive: { color: colors.onAccent },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -487,13 +487,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...shadow,
   },
-  itemSelected: { borderColor: colors.gold, backgroundColor: '#FFF9EA' },
+  itemSelected: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
   itemDisabled: { opacity: 0.4 },
   pressed: { opacity: 0.75, transform: [{ scale: 0.97 }] },
   itemBar: { width: 6 },
   itemBody: { flex: 1, padding: 12, justifyContent: 'space-between' },
   itemName: { fontSize: 16, fontWeight: '700', color: colors.text, lineHeight: 21 },
-  itemPrice: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 18, color: colors.goldDeep, marginTop: 8 },
+  itemPrice: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 18, color: colors.accentText, marginTop: 8 },
   qtyBadge: {
     position: 'absolute',
     top: 8,
@@ -501,12 +501,12 @@ const styles = StyleSheet.create({
     minWidth: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: colors.gold,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 6,
   },
-  qtyText: { color: colors.ink, fontWeight: '900', fontSize: 15 },
+  qtyText: { color: colors.onAccent, fontWeight: '900', fontSize: 15 },
   minus: {
     position: 'absolute',
     right: 14,
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  side: { flexGrow: 0, flexShrink: 0, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: '#FBF7EF' },
+  side: { flexGrow: 0, flexShrink: 0, borderLeftWidth: 1, borderLeftColor: colors.border, backgroundColor: colors.ink },
   sideContent: { padding: 18, paddingBottom: 40 },
   bottom: {
     flexDirection: 'row',
@@ -545,12 +545,12 @@ const styles = StyleSheet.create({
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: colors.gold,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  summaryCountText: { fontSize: 11, fontWeight: '900', color: colors.ink },
+  summaryCountText: { fontSize: 11, fontWeight: '900', color: colors.onAccent },
   summaryLabel: { color: colors.onDarkMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
   summaryTotal: { fontFamily: fonts.display, fontVariant: ['lining-nums'], color: colors.onDark, fontSize: 19 },
   hintBox: { alignItems: 'center', justifyContent: 'center', minHeight: 58 },
@@ -586,7 +586,7 @@ const styles = StyleSheet.create({
   choiceDesc: { color: colors.muted, marginTop: 2 },
   allergens: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.dangerSoft, borderRadius: 12, padding: 10 },
   allergensText: { flex: 1, color: colors.danger, fontWeight: '700', fontSize: 13 },
-  choiceLabel: { fontSize: 13, fontWeight: '800', color: colors.goldDeep, letterSpacing: 1.2, textTransform: 'uppercase' },
+  choiceLabel: { fontSize: 13, fontWeight: '800', color: colors.accentText, letterSpacing: 1.2, textTransform: 'uppercase' },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   choice: {
     flexGrow: 1,
@@ -598,10 +598,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink,
     paddingHorizontal: 12,
   },
-  choicePressed: { backgroundColor: colors.gold },
+  choicePressed: { backgroundColor: colors.accent },
   choiceText: { color: colors.onDark, fontSize: 17, fontWeight: '800' },
   payTotal: { alignItems: 'center', paddingVertical: 8 },
-  payLabel: { fontSize: 13, color: colors.goldDeep, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
+  payLabel: { fontSize: 13, color: colors.accentText, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
   payAmount: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 46, color: colors.text },
   payMeta: { fontSize: 13, color: colors.muted, marginTop: 2 },
   warning: { marginTop: 8, color: colors.ready, fontWeight: '700', textAlign: 'center' },

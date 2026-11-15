@@ -19,7 +19,7 @@ import { deleteCategory, moveCategory, upsertCategory } from '../../store/action
 import { uid } from '../../store/defaults';
 import { useStore } from '../../store/StoreProvider';
 import type { Category, Station } from '../../store/types';
-import { categoryPalette, colors, stationLabel } from '../../theme';
+import { categoryPalette, colors, stationLabel, screenBg } from '../../theme';
 
 function CategoriesScreen() {
   const { state, dispatch } = useStore();
@@ -144,7 +144,7 @@ function CategoriesScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, ...screenBg },
   content: { padding: 16, paddingBottom: 40, width: '100%', maxWidth: 800, alignSelf: 'center' },
   help: { color: colors.muted, marginBottom: 12 },
   group: { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },

@@ -10,9 +10,9 @@ import { Button, confirm, FormModal } from '../ui';
 import { formatDateTime, openWhatsApp } from './OrderSheet';
 
 export const HEALTH: Record<LicenseHealth, { label: string; color: string; soft: string }> = {
-  vie: { label: 'À vie', color: colors.goldDeep, soft: colors.goldSoft },
+  vie: { label: 'À vie', color: colors.accentText, soft: colors.accentSoft },
   active: { label: 'Active', color: colors.free, soft: colors.freeSoft },
-  bientot: { label: 'Fin sous 5 jours', color: '#C26A0A', soft: '#FCE2C4' },
+  bientot: { label: 'Fin sous 5 jours', color: '#FF9438', soft: 'rgba(255, 148, 56, 0.2)' },
   expiree: { label: 'Expirée', color: colors.danger, soft: colors.dangerSoft },
   revoquee: { label: 'Révoquée', color: colors.muted, soft: colors.line },
   aucune: { label: 'Pas encore activée', color: colors.busy, soft: colors.busySoft },
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
   rowLabel: { color: colors.muted, fontSize: 13 },
   rowValue: { color: colors.text, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
-  section: { fontWeight: '900', color: colors.goldDeep, letterSpacing: 1, fontSize: 12, marginTop: 6 },
+  section: { fontWeight: '900', color: colors.accentText, letterSpacing: 1, fontSize: 12, marginTop: 6 },
   muted: { color: colors.muted, fontSize: 12 },
   order: {
     flexDirection: 'row',

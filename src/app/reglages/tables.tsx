@@ -20,7 +20,7 @@ import { uid } from '../../store/defaults';
 import { openOrderForTable } from '../../store/selectors';
 import { useStore } from '../../store/StoreProvider';
 import type { Table } from '../../store/types';
-import { colors } from '../../theme';
+import { colors, screenBg } from '../../theme';
 
 interface TableDraft {
   id: string | null;
@@ -191,7 +191,7 @@ function ZoneChips({ zones, onPick }: { zones: string[]; onPick: (zone: string) 
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, ...screenBg },
   content: { padding: 16, paddingBottom: 40, width: '100%', maxWidth: 800, alignSelf: 'center' },
   group: { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
   actions: { gap: 10, marginTop: 20 },

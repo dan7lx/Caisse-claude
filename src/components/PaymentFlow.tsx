@@ -28,7 +28,7 @@ const WHATSAPP_GREEN = '#1FAF5A';
 const POLL_MS = 20_000;
 
 export const STATUS_TEXT: Record<OrderStatus, { label: string; emoji: string; color: string; soft: string }> = {
-  en_attente: { label: 'En attente de votre virement', emoji: '⏳', color: colors.goldDeep, soft: colors.goldSoft },
+  en_attente: { label: 'En attente de votre virement', emoji: '⏳', color: colors.accentText, soft: colors.accentSoft },
   preuve_envoyee: { label: 'Preuve reçue · vérification en cours', emoji: '🔎', color: colors.busy, soft: colors.busySoft },
   confirmee: { label: 'Paiement confirmé', emoji: '✅', color: colors.free, soft: colors.freeSoft },
   refusee: { label: 'Paiement refusé', emoji: '⛔', color: colors.danger, soft: colors.dangerSoft },
@@ -116,7 +116,7 @@ export function PaymentFlow({ plan, onClose }: Props) {
           />
         ) : (
           <View style={styles.loading}>
-            {error ? <Text style={styles.error}>{error}</Text> : <ActivityIndicator color={colors.gold} />}
+            {error ? <Text style={styles.error}>{error}</Text> : <ActivityIndicator color={colors.accent} />}
             {error ? <Button title="Réessayer" onPress={refresh} /> : null}
           </View>
         )
@@ -378,7 +378,7 @@ function Row({
         </Text>
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={`Copier ${label}`} onPress={onCopy} style={styles.copy} hitSlop={6}>
-        <Ionicons name="copy-outline" size={16} color={colors.goldDeep} />
+        <Ionicons name="copy-outline" size={16} color={colors.accentText} />
         <Text style={styles.copyText}>Copier</Text>
       </Pressable>
     </View>
@@ -393,10 +393,10 @@ const styles = StyleSheet.create({
   hint: { color: colors.muted, fontSize: 13, lineHeight: 18 },
   error: { color: colors.danger, fontWeight: '700' },
   planHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  planName: { fontWeight: '800', color: colors.goldDeep, fontSize: 14 },
+  planName: { fontWeight: '800', color: colors.accentText, fontSize: 14 },
   planAmount: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 34, color: colors.text },
   merchant: { backgroundColor: colors.ink, borderRadius: 18, padding: 16, alignItems: 'center' },
-  merchantLabel: { color: colors.gold, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
+  merchantLabel: { color: colors.accent, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
   merchantName: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 24, color: colors.onDark, marginTop: 2 },
   merchantOwner: { color: colors.onDarkMuted, fontSize: 14 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, padding: 12 },
@@ -408,10 +408,10 @@ const styles = StyleSheet.create({
   rowLabel: { fontSize: 12, color: colors.muted, fontWeight: '700' },
   rowValue: { fontSize: 16, color: colors.text, fontWeight: '700', marginTop: 2 },
   rowBig: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 28 },
-  rowRef: { fontSize: 22, color: colors.goldDeep, letterSpacing: 1.5 },
+  rowRef: { fontSize: 22, color: colors.accentText, letterSpacing: 1.5 },
   mono: { fontVariant: ['tabular-nums'], letterSpacing: 0.5 },
-  copy: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.goldSoft, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
-  copyText: { color: colors.goldDeep, fontWeight: '800', fontSize: 12 },
+  copy: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.accentSoft, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
+  copyText: { color: colors.accentText, fontWeight: '800', fontSize: 12 },
   instant: { fontSize: 11, color: colors.muted, textAlign: 'center' },
   whatsapp: {
     flexDirection: 'row',
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
   keyBox: { gap: 10, backgroundColor: colors.freeSoft, borderRadius: 16, padding: 14 },
   keyTitle: { fontWeight: '800', fontSize: 15, color: colors.text },
   keyInput: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.field,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,

@@ -10,7 +10,7 @@ import { setLinesStatus } from '../../store/actions';
 import { kitchenTickets, type Ticket } from '../../store/selectors';
 import { useNow, useStore } from '../../store/StoreProvider';
 import type { LineStatus, OrderLine, Station } from '../../store/types';
-import { colors, fonts, lineStatusStyle } from '../../theme';
+import { colors, fonts, lineStatusStyle, screenBg } from '../../theme';
 import { formatElapsed, formatTime } from '../../utils/format';
 import { haptic } from '../../utils/haptics';
 
@@ -178,7 +178,7 @@ export default function KitchenScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, ...screenBg },
   flex: { flex: 1 },
   header: { padding: 16, paddingBottom: 8 },
   content: { padding: 16, paddingBottom: 32 },
@@ -188,14 +188,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 18,
     borderWidth: 2,
-    borderColor: colors.ink,
+    borderColor: colors.border,
     overflow: 'hidden',
   },
   ticketLate: { borderColor: colors.danger },
-  ticketHead: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.dark, padding: 12 },
+  ticketHead: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.busySoft, padding: 12 },
   ticketHeadLate: { backgroundColor: colors.danger },
   ticketTitle: { color: colors.onDark, fontSize: 22, fontFamily: fonts.display, fontVariant: ['lining-nums'] },
-  ticketMeta: { color: colors.goldLight, fontSize: 12, marginTop: 2 },
+  ticketMeta: { color: colors.accentLight, fontSize: 12, marginTop: 2 },
   ticketMetaDark: { color: colors.muted, fontSize: 12 },
   timer: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   timerText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16 },
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
-  pressed: { backgroundColor: colors.goldSoft },
+  pressed: { backgroundColor: colors.accentSoft },
   lineText: { fontSize: 17, fontWeight: '600', color: colors.text },
   lineDone: { textDecorationLine: 'line-through', color: colors.muted },
   lineQty: { fontWeight: '800' },

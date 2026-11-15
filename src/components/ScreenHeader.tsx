@@ -80,10 +80,10 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   flex: { flex: 1 },
-  logo: { width: 42, height: 42, borderRadius: 12, borderWidth: 1, borderColor: colors.gold },
+  logo: { width: 42, height: 42, borderRadius: 12, borderWidth: 1, borderColor: colors.accent },
   title: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 26, color: colors.onDark },
   titleSmall: { fontSize: 21 },
-  subtitle: { fontSize: 11, color: colors.gold, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', marginTop: 2 },
+  subtitle: { fontSize: 11, color: colors.accent, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', marginTop: 2 },
   profile: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -99,5 +99,5 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   profileText: { color: colors.onDark, fontWeight: '700', flexShrink: 1 },
-  profileSwitch: { color: colors.gold, fontWeight: '800', fontSize: 12 },
+  profileSwitch: { color: colors.accent, fontWeight: '800', fontSize: 12 },
 });

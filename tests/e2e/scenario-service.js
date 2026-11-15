@@ -130,6 +130,19 @@ const tab = (page, name) => page.getByText(name, { exact: true }).last();
   await a.getByRole('button', { name: 'Enregistrer', exact: true }).click();
   await a.goBack();
 
+  // Photo d'un produit depuis la galerie
+  await a.getByText('Articles, prix & allergènes').click();
+  await a.getByRole('button', { name: 'Modifier Pavé de saumon' }).click();
+  const chooser = a.waitForEvent('filechooser');
+  await a.getByRole('button', { name: 'Galerie', exact: true }).click();
+  await (await chooser).setFiles('docs/captures/salle.png');
+  await a.getByLabel('Photo du produit', { exact: true }).waitFor({ timeout: 15000 });
+  await shot(a, 'v4-07b-photo-produit');
+  await a.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+  await a.getByLabel('Photo de Pavé de saumon').first().waitFor();
+  console.log('Photo de produit : choisie dans la galerie, recadrée et enregistrée');
+  await a.goBack();
+
   // Équipe & postes : code personnel du chef
   await a.getByText('Équipe & postes').click();
   await a.getByText('Chef', { exact: true }).waitFor();

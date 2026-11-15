@@ -43,8 +43,8 @@ export function SupportCard({ dark }: { dark?: boolean }) {
           onPress={() => open(`tel:${SUPPORT.phone}`)}
           style={({ pressed }) => [styles.btn, styles.call, pressed && styles.pressed]}
         >
-          <Ionicons name="call" size={18} color={colors.ink} />
-          <Text style={[styles.btnText, { color: colors.ink }]}>Appeler</Text>
+          <Ionicons name="call" size={18} color={colors.onAccent} />
+          <Text style={[styles.btnText, { color: colors.onAccent }]}>Appeler</Text>
         </Pressable>
       </View>
     </View>
@@ -52,7 +52,7 @@ export function SupportCard({ dark }: { dark?: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  card: { marginTop: 20, padding: 16, borderRadius: 20, backgroundColor: '#E8F5EC', borderWidth: 1, borderColor: '#BFE3CB', gap: 12 },
+  card: { marginTop: 20, padding: 16, borderRadius: 20, backgroundColor: colors.freeSoft, borderWidth: 1, borderColor: 'rgba(52, 211, 153, 0.4)', gap: 12 },
   cardDark: { backgroundColor: colors.ink2, borderColor: colors.ink3, marginTop: 0 },
   head: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
   flex: { flex: 1 },
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 10 },
   btn: { flex: 1, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', minHeight: 48, borderRadius: 14 },
   whatsapp: { backgroundColor: '#25D366' },
-  call: { backgroundColor: colors.gold },
+  call: { backgroundColor: colors.accent },
   pressed: { opacity: 0.85 },
   btnText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
 });

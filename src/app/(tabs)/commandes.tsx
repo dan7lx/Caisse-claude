@@ -9,7 +9,7 @@ import { Badge, Empty, Segmented } from '../../components/ui';
 import { countByStatus, openOrders, orderTotal, tableState } from '../../store/selectors';
 import { useNow, useStore } from '../../store/StoreProvider';
 import type { Order } from '../../store/types';
-import { colors, fonts, lineStatusStyle, shadow, tableStateStyle } from '../../theme';
+import { colors, fonts, lineStatusStyle, shadow, tableStateStyle, screenBg } from '../../theme';
 import { formatElapsed, formatPrice } from '../../utils/format';
 import { useLayout } from '../../utils/layout';
 
@@ -100,11 +100,11 @@ function OrderCard({ order, now, currency, onPress }: OrderCardProps) {
           <Text style={styles.cardTotal}>{formatPrice(orderTotal(order), currency)}</Text>
         </View>
         <View style={styles.cardMeta}>
-          <Ionicons name="person" size={13} color={colors.goldDeep} />
+          <Ionicons name="person" size={13} color={colors.accentText} />
           <Text style={styles.metaText}>{order.server}</Text>
-          <Ionicons name="people" size={13} color={colors.goldDeep} />
+          <Ionicons name="people" size={13} color={colors.accentText} />
           <Text style={styles.metaText}>{order.guests}</Text>
-          <Ionicons name="time" size={13} color={colors.goldDeep} />
+          <Ionicons name="time" size={13} color={colors.accentText} />
           <Text style={styles.metaText}>{formatElapsed(now - order.createdAt)}</Text>
           <Text style={styles.metaText}>· n°{order.number}</Text>
         </View>
@@ -123,7 +123,7 @@ function OrderCard({ order, now, currency, onPress }: OrderCardProps) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, ...screenBg },
   header: { marginBottom: 6 },
   list: { padding: 16, paddingTop: 10, gap: 12, width: '100%', maxWidth: 900, alignSelf: 'center' },
   card: {

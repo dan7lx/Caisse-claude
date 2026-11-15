@@ -1,9 +1,4 @@
-import {
-  PlayfairDisplay_400Regular_Italic,
-  PlayfairDisplay_700Bold,
-  PlayfairDisplay_800ExtraBold,
-  useFonts,
-} from '@expo-google-fonts/playfair-display';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
@@ -15,9 +10,9 @@ import { colors, headerStyle } from '../theme';
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
-    PlayfairDisplay_400Regular_Italic,
-    PlayfairDisplay_700Bold,
-    PlayfairDisplay_800ExtraBold,
+    SpaceGrotesk_500Medium: require('../../assets/fonts/space-grotesk-500.ttf'),
+    SpaceGrotesk_600SemiBold: require('../../assets/fonts/space-grotesk-600.ttf'),
+    SpaceGrotesk_700Bold: require('../../assets/fonts/space-grotesk-700.ttf'),
   });
   if (!loaded && !error) return <View style={{ flex: 1, backgroundColor: colors.ink }} />;
 

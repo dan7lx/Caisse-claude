@@ -36,8 +36,8 @@ interface Props {
 }
 
 /** Orange des 5 jours de rappel et rouge du jour d'échéance. */
-const ORANGE = '#E8891A';
-const ORANGE_SOFT = '#FCE2C4';
+const ORANGE = '#FF9438';
+const ORANGE_SOFT = 'rgba(255, 148, 56, 0.24)';
 
 /**
  * Petit calendrier de l'abonnement : 5 jours de rappel (orange), jour de fin / blocage (rouge), aujourd'hui (cerclé).
@@ -79,7 +79,7 @@ export function PaymentCalendar({ status, now, compact }: Props) {
       <View style={styles.legend}>
         <Legend color={colors.danger} label="Fin de l’abonnement (blocage)" />
         <Legend color={ORANGE_SOFT} border={ORANGE} label="Rappel (5 jours avant)" />
-        <Legend color="transparent" border={colors.ink} label="Aujourd’hui" />
+        <Legend color="transparent" border={colors.text} label="Aujourd’hui" />
       </View>
     </View>
   );
@@ -167,16 +167,16 @@ const styles = StyleSheet.create({
   monthTitleCompact: { fontSize: 16, marginBottom: 4 },
   dayReminder: { backgroundColor: ORANGE_SOFT, borderColor: ORANGE },
   dayDue: { backgroundColor: colors.danger, borderColor: colors.danger },
-  dayToday: { borderColor: colors.ink },
+  dayToday: { borderColor: colors.text },
   dayText: { fontSize: 14, color: colors.text, fontWeight: '600' },
   dayTextDue: { color: '#FFFFFF', fontWeight: '800' },
-  dayTextReminder: { color: '#8A4A05', fontWeight: '800' },
+  dayTextReminder: { color: '#FFB877', fontWeight: '800' },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
   legendText: { fontSize: 12, color: colors.muted },
-  lifetime: { padding: 16, borderRadius: 14, backgroundColor: colors.goldSoft, alignItems: 'center' },
-  lifetimeTitle: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 20, color: colors.goldDeep },
+  lifetime: { padding: 16, borderRadius: 14, backgroundColor: colors.accentSoft, alignItems: 'center' },
+  lifetimeTitle: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 20, color: colors.accentText },
   lifetimeText: { color: colors.text, marginTop: 4 },
 });
 
@@ -202,12 +202,12 @@ const clockStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.goldSoft,
+    backgroundColor: colors.accentSoft,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginBottom: 12,
   },
   date: { fontWeight: '700', color: colors.text, flexShrink: 1 },
-  time: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums', 'tabular-nums'], fontSize: 18, color: colors.goldDeep },
+  time: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums', 'tabular-nums'], fontSize: 18, color: colors.accentText },
 });

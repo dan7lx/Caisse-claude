@@ -94,7 +94,7 @@ export function SubscriptionPanel({ dark }: Props) {
             <Text style={styles.pendingTitle}>Paiement en cours · {planLabel(pending.plan)}</Text>
             <Text style={styles.pendingText}>Touchez pour voir le virement, envoyer la preuve ou saisir votre clé.</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.gold} />
+          <Ionicons name="chevron-forward" size={20} color={colors.accent} />
         </Pressable>
       ) : null}
 
@@ -107,7 +107,7 @@ export function SubscriptionPanel({ dark }: Props) {
         </View>
         <Text style={[styles.codeHint, { color: muted }]}>
           Après la confirmation de votre virement, saisissez la clé reçue sur WhatsApp. Identifiant de licence :{' '}
-          <Text style={[styles.licenseId, { color: colors.gold }]} selectable>
+          <Text style={[styles.licenseId, { color: colors.accent }]} selectable>
             {state.license.id}
           </Text>
         </Text>
@@ -223,7 +223,7 @@ function PlanCard({ emoji, title, price, period, lines, highlight, onPay }: Plan
       ) : null}
       <View style={styles.planHead}>
         <Emoji3D emoji={emoji} size={44} />
-        <Text style={[styles.planTitle, highlight && { color: colors.gold }]}>{title}</Text>
+        <Text style={[styles.planTitle, highlight && { color: colors.accent }]}>{title}</Text>
       </View>
       <View style={styles.priceRow}>
         <Text style={[styles.price, highlight && { color: colors.onDark }]}>{price}</Text>
@@ -232,7 +232,7 @@ function PlanCard({ emoji, title, price, period, lines, highlight, onPay }: Plan
       <View style={styles.lines}>
         {lines.map((l) => (
           <View key={l} style={styles.line}>
-            <Ionicons name="checkmark-circle" size={16} color={colors.gold} />
+            <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
             <Text style={[styles.lineText, highlight && { color: colors.onDark }]}>{l}</Text>
           </View>
         ))}
@@ -265,17 +265,17 @@ const styles = StyleSheet.create({
     gap: 10,
     ...shadow,
   },
-  planHighlight: { backgroundColor: colors.ink2, borderColor: colors.gold, borderWidth: 2 },
+  planHighlight: { backgroundColor: colors.ink2, borderColor: colors.accent, borderWidth: 2 },
   ribbon: {
     position: 'absolute',
     top: -11,
     right: 16,
-    backgroundColor: colors.gold,
+    backgroundColor: colors.accent,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
   },
-  ribbonText: { fontSize: 10, fontWeight: '900', color: colors.ink, letterSpacing: 1 },
+  ribbonText: { fontSize: 10, fontWeight: '900', color: colors.onAccent, letterSpacing: 1 },
   planHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   planTitle: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 22, color: colors.text },
   priceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' },
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
     minHeight: 50,
     borderRadius: 14,
   },
-  payBtnGold: { backgroundColor: colors.gold },
+  payBtnGold: { backgroundColor: colors.accent },
   payBtnDark: { backgroundColor: colors.ink },
   payText: { fontSize: 16, fontWeight: '800' },
   demo: {
@@ -302,16 +302,16 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
     borderRadius: 20,
-    backgroundColor: '#FFF6E0',
+    backgroundColor: colors.accentSoft,
     borderWidth: 1,
-    borderColor: colors.goldLight,
+    borderColor: colors.accentLight,
   },
-  demoDark: { backgroundColor: '#2B2213', borderColor: colors.goldDeep },
+  demoDark: { backgroundColor: colors.accentSoft, borderColor: colors.accentText },
   demoTitle: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 19, color: colors.text },
-  demoTimer: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums', 'tabular-nums'], fontSize: 30, color: colors.gold },
+  demoTimer: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums', 'tabular-nums'], fontSize: 30, color: colors.accent },
   demoText: { color: colors.muted, fontSize: 13, marginTop: 2, lineHeight: 18 },
-  demoBtn: { backgroundColor: colors.gold, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 },
-  demoBtnText: { color: colors.ink, fontWeight: '800' },
+  demoBtn: { backgroundColor: colors.accent, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  demoBtnText: { color: colors.onAccent, fontWeight: '800' },
   codeBox: { borderRadius: 18, padding: 16, gap: 8, borderWidth: 1 },
   codeBoxDark: { backgroundColor: colors.ink2, borderColor: colors.ink3 },
   codeBoxLight: { backgroundColor: colors.card, borderColor: colors.border },
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   codeInputDark: { backgroundColor: colors.ink, borderColor: colors.ink3, color: colors.onDark },
-  codeInputLight: { backgroundColor: '#FFFFFF', borderColor: colors.border, color: colors.text },
+  codeInputLight: { backgroundColor: colors.field, borderColor: colors.border, color: colors.text },
   error: { color: '#E8857C', fontWeight: '700' },
   pending: {
     flexDirection: 'row',
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: colors.ink2,
     borderWidth: 2,
-    borderColor: colors.gold,
+    borderColor: colors.accent,
   },
   pendingTitle: { color: colors.onDark, fontWeight: '800', fontSize: 15 },
   pendingText: { color: colors.onDarkMuted, fontSize: 13, marginTop: 2 },

@@ -31,6 +31,8 @@ export interface MenuItem {
   /** Choix à faire à la commande (ex. cuissons). Vide = pas de choix. */
   choices: string[];
   allergens: string[];
+  /** Photo du produit (data URI JPEG 240 px), affichée à la place de l'emoji. */
+  photo?: string | null;
 }
 
 export interface Table {

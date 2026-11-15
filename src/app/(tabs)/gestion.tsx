@@ -15,7 +15,7 @@ import { formatCountdown, hashManagerPin, licenseStatus } from '../../license/li
 import { resetDemo, setManagerPin, wipeAll } from '../../store/actions';
 import { openOrders, salesStats, startOfDay } from '../../store/selectors';
 import { useStore } from '../../store/StoreProvider';
-import { colors, fonts } from '../../theme';
+import { colors, fonts, screenBg } from '../../theme';
 import { formatPrice } from '../../utils/format';
 import { useLayout } from '../../utils/layout';
 
@@ -80,7 +80,7 @@ function ManagementScreen() {
           </Text>
         </View>
         {phone ? (
-          <IconButton icon="lock-closed" label="Verrouiller" color={colors.gold} size={24} onPress={() => setSession({ manager: false, admin: false })} style={styles.lockBtn} />
+          <IconButton icon="lock-closed" label="Verrouiller" color={colors.accent} size={24} onPress={() => setSession({ manager: false, admin: false })} style={styles.lockBtn} />
         ) : (
           <Button title="Verrouiller" icon="lock-closed" small onPress={() => setSession({ manager: false, admin: false })} />
         )}
@@ -131,7 +131,7 @@ function ManagementScreen() {
       <SectionTitle>La salle & l’équipe</SectionTitle>
       <Group>
         <ListRow emoji="🪑" title="Tables & zones" subtitle={`${state.tables.length} tables · ${zones} zone(s)`} chevron onPress={() => router.push('/reglages/tables')} />
-        <ListRow emoji="👥" title="Équipe & postes" subtitle={`${state.staff.length} employé(s) · postes et codes`} chevron onPress={() => router.push('/reglages/serveurs')} />
+        <ListRow emoji="🧑‍🍳" title="Équipe & postes" subtitle={`${state.staff.length} employé(s) · postes et codes`} chevron onPress={() => router.push('/reglages/serveurs')} />
         <ListRow
           emoji="📡"
           title="Lobby de l’équipe"
@@ -272,7 +272,7 @@ function Stat({ emoji, label, value }: { emoji: string; label: string; value: st
 
 const styles = StyleSheet.create({
   creatorLink: { color: colors.muted, fontSize: 12, textAlign: 'center', textDecorationLine: 'underline', paddingVertical: 6 },
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, ...screenBg },
   flex: { flex: 1 },
   content: { padding: 16, paddingBottom: 48, width: '100%', maxWidth: 820, alignSelf: 'center' },
   hero: {
@@ -283,9 +283,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.goldDeep,
+    borderColor: colors.accentText,
   },
-  logo: { width: 60, height: 60, borderRadius: 16, borderWidth: 1, borderColor: colors.gold },
+  logo: { width: 60, height: 60, borderRadius: 16, borderWidth: 1, borderColor: colors.accent },
   logoEmpty: {
     width: 60,
     height: 60,
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.ink2,
   },
   lockBtn: { alignSelf: 'flex-start', padding: 8, borderRadius: 12, backgroundColor: colors.ink2 },
-  heroLabel: { color: colors.gold, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
+  heroLabel: { color: colors.accent, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
   heroTitle: { fontFamily: fonts.display, fontVariant: ['lining-nums'], color: colors.onDark, fontSize: 24, marginTop: 2 },
   heroTitleSmall: { fontSize: 20 },
   heroSub: { color: colors.onDarkMuted, fontSize: 12, marginTop: 4 },

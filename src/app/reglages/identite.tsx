@@ -8,7 +8,7 @@ import { useToast } from '../../components/Toast';
 import { Button, Card, confirm, Field, notify, SectionTitle } from '../../components/ui';
 import { updateSettings } from '../../store/actions';
 import { useStore } from '../../store/StoreProvider';
-import { colors, fonts } from '../../theme';
+import { colors, fonts, screenBg } from '../../theme';
 import { pickLogo } from '../../utils/pickLogo';
 
 function IdentityScreen() {
@@ -64,7 +64,7 @@ function IdentityScreen() {
       <View style={styles.preview}>
         <Pressable accessibilityRole="button" accessibilityLabel="Changer le logo" onPress={chooseLogo} style={styles.logoWrap}>
           {loading ? (
-            <ActivityIndicator color={colors.gold} />
+            <ActivityIndicator color={colors.accent} />
           ) : s.logo ? (
             <Image source={{ uri: s.logo }} style={styles.logo} accessibilityLabel="Logo du commerce" />
           ) : (
@@ -138,7 +138,7 @@ export default function IdentityRoute() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, ...screenBg },
   content: { padding: 16, paddingBottom: 48, width: '100%', maxWidth: 720, alignSelf: 'center' },
   flex: { flex: 1 },
   preview: {
@@ -149,14 +149,14 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     padding: 18,
     borderWidth: 1,
-    borderColor: colors.goldDeep,
+    borderColor: colors.accentText,
   },
   logoWrap: {
     width: 88,
     height: 88,
     borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: colors.gold,
+    borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   },
   logo: { width: '100%', height: '100%' },
   previewName: { fontFamily: fonts.display, fontVariant: ['lining-nums'], color: colors.onDark, fontSize: 24 },
-  previewSlogan: { fontFamily: fonts.displayItalic, fontVariant: ['lining-nums'], color: colors.goldLight, fontSize: 15, marginTop: 2 },
+  previewSlogan: { fontFamily: fonts.displayItalic, fontVariant: ['lining-nums'], color: colors.accentLight, fontSize: 15, marginTop: 2 },
   previewHint: { color: colors.onDarkMuted, fontSize: 12, marginTop: 6 },
   card: { gap: 12 },
   text: { color: colors.text, fontSize: 14, lineHeight: 20 },

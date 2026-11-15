@@ -33,7 +33,8 @@ export const addItem = (orderId: string, item: MenuItem, station: Station, note 
   t: 'addItem',
   orderId,
   lineId: uid(),
-  item,
+  // La photo n'est pas recopiée dans chaque ligne de commande (opérations légères pour le lobby).
+  item: { ...item, photo: null },
   station,
   note,
 });

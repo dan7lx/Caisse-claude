@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
   wrap: { gap: 8 },
   current: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   auto: { borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  autoActive: { backgroundColor: colors.ink, borderColor: colors.ink },
+  autoActive: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
   autoText: { fontWeight: '700', color: colors.text, fontSize: 13 },
   autoTextActive: { color: colors.onDark },
   scroll: { paddingVertical: 2 },
@@ -79,5 +79,5 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.border,
   },
-  cellActive: { borderColor: colors.gold, backgroundColor: colors.goldSoft },
+  cellActive: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
 });

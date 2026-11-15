@@ -125,7 +125,7 @@ export function OrderSheet({ order, onClose, onConfirm, onReject, onGenerateKey 
                 }}
                 style={styles.copy}
               >
-                <Ionicons name="copy-outline" size={18} color={colors.ink} />
+                <Ionicons name="copy-outline" size={18} color={colors.onAccent} />
                 <Text style={styles.copyText}>Copier</Text>
               </Pressable>
               <Pressable
@@ -176,14 +176,14 @@ const styles = StyleSheet.create({
   info: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
   infoLabel: { color: colors.muted, fontSize: 13, flexShrink: 0 },
   infoValue: { color: colors.text, fontSize: 14, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
-  infoStrong: { fontWeight: '900', color: colors.goldDeep, fontSize: 15 },
+  infoStrong: { fontWeight: '900', color: colors.accentText, fontSize: 15 },
   help: { color: colors.text, fontSize: 14, lineHeight: 20 },
   keyBox: { backgroundColor: colors.ink, borderRadius: 18, padding: 16, gap: 10, alignItems: 'center' },
-  keyLabel: { color: colors.gold, fontSize: 11, fontWeight: '900', letterSpacing: 1.5 },
+  keyLabel: { color: colors.accent, fontSize: 11, fontWeight: '900', letterSpacing: 1.5 },
   key: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], color: colors.onDark, fontSize: 24, letterSpacing: 2 },
   keyActions: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', justifyContent: 'center' },
-  copy: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.gold, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
-  copyText: { fontWeight: '800', color: colors.ink },
+  copy: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.accent, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
+  copyText: { fontWeight: '800', color: colors.onAccent },
   send: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1FAF5A', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
   sendText: { fontWeight: '800', color: '#FFFFFF' },
 });

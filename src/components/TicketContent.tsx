@@ -46,7 +46,7 @@ export function TicketContent({ order, onNote, onSend, onPay, onCancel, onMoveTa
           </Text>
         </View>
         <View style={styles.guests}>
-          <Ionicons name="people" size={16} color={colors.goldDeep} />
+          <Ionicons name="people" size={16} color={colors.accentText} />
           <Stepper label="couverts" value={order.guests} onChange={(v) => dispatch(setGuests(order.id, v))} />
         </View>
       </View>
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  totalLabel: { fontSize: 13, fontWeight: '800', color: colors.goldDeep, letterSpacing: 1.4, textTransform: 'uppercase' },
+  totalLabel: { fontSize: 13, fontWeight: '800', color: colors.accentText, letterSpacing: 1.4, textTransform: 'uppercase' },
   totalValue: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 32, color: colors.text },
   actions: { gap: 10, marginTop: 6 },
   tools: { flexDirection: 'row', gap: 8 },

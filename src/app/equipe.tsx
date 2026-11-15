@@ -15,7 +15,7 @@ import { addServer } from '../store/actions';
 import { useNow, useStore } from '../store/StoreProvider';
 import type { Role, ServerConfig } from '../store/types';
 import { makeInviteLink } from '../sync/backend';
-import { colors, fonts, roleEmoji, roleLabel } from '../theme';
+import { colors, fonts, roleEmoji, roleLabel, screenBg } from '../theme';
 
 import { haptic } from '../utils/haptics';
 import { useLayout } from '../utils/layout';
@@ -114,7 +114,6 @@ export default function TeamScreen() {
               <Chip
                 key={m.id}
                 label={`${roleEmoji[m.role]} ${m.name}`}
-                color={colors.ink}
                 selected={device.currentServer === m.name}
                 onPress={() => updateDevice({ currentServer: m.name, role: m.role })}
               />
@@ -371,7 +370,7 @@ function ChoiceCard({ emoji, title, subtitle, selected, onPress }: ChoiceCardPro
     >
       <Emoji3D emoji={emoji} size={52} />
       <Text style={[styles.choiceTitle, selected && { color: colors.onDark }]}>{title}</Text>
-      <Text style={[styles.choiceSub, selected && { color: colors.goldLight }]}>{subtitle}</Text>
+      <Text style={[styles.choiceSub, selected && { color: colors.accentLight }]}>{subtitle}</Text>
     </Pressable>
   );
 }
@@ -396,7 +395,7 @@ function ServerField({ label, value, onChange, onPaste, placeholder }: ServerFie
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
+  screen: { flex: 1, ...screenBg },
   content: { padding: 16, paddingBottom: 48, width: '100%', maxWidth: 720, alignSelf: 'center', gap: 12 },
   flex: { flex: 1 },
   card: { gap: 12 },
@@ -416,7 +415,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.border,
   },
-  choiceActive: { backgroundColor: colors.ink, borderColor: colors.gold },
+  choiceActive: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
   choiceTitle: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 19, color: colors.text, textAlign: 'center' },
   choiceSub: { fontSize: 12, color: colors.muted, textAlign: 'center' },
   stepHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -434,7 +433,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
     fontSize: 15,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.field,
     color: colors.text,
   },
   server: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.freeSoft, borderRadius: 14, padding: 12 },
@@ -449,16 +448,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: colors.goldDeep,
+    borderColor: colors.accentText,
   },
-  lobbyLabel: { color: colors.gold, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
+  lobbyLabel: { color: colors.accent, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
   lobbyCode: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], color: colors.onDark, fontSize: 46, letterSpacing: 10 },
   lobbyCodeSmall: { fontSize: 36, letterSpacing: 6 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   statusText: { color: colors.onDarkMuted, fontWeight: '600' },
   error: { color: '#E8857C', textAlign: 'center' },
-  qr: { padding: 12, backgroundColor: '#FFFFFF', borderRadius: 18, marginTop: 6 },
+  qr: { padding: 12, backgroundColor: colors.field, borderRadius: 18, marginTop: 6 },
   qrHint: { color: colors.onDarkMuted, textAlign: 'center', fontSize: 13, maxWidth: 360 },
   lobbyActions: { flexDirection: 'row', gap: 10, marginTop: 8, alignSelf: 'stretch' },
   pinScreen: { flex: 1, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },

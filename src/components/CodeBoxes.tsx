@@ -30,7 +30,7 @@ export function CodeBoxes({ value, onChange, length = 6, dark, autoFocus }: Prop
                 active ? styles.boxActive : null,
               ]}
             >
-              <Text style={[styles.char, { color: dark ? colors.gold : colors.ink }]}>{ch}</Text>
+              <Text style={[styles.char, { color: dark ? colors.accent : colors.ink }]}>{ch}</Text>
             </View>
           );
         })}
@@ -64,9 +64,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   boxDark: { backgroundColor: colors.ink, borderColor: colors.ink3 },
-  boxLight: { backgroundColor: '#FFFFFF', borderColor: colors.border },
-  boxFilled: { borderColor: colors.goldDeep },
-  boxActive: { borderColor: colors.gold, borderWidth: 2 },
+  boxLight: { backgroundColor: colors.field, borderColor: colors.border },
+  boxFilled: { borderColor: colors.accentText },
+  boxActive: { borderColor: colors.accent, borderWidth: 2 },
   char: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 26 },
   // Champ réel invisible mais focalisable (clavier natif, collage, remplissage automatique).
   hidden: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, opacity: 0.02, color: 'transparent' },
