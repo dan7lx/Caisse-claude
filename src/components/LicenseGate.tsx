@@ -41,7 +41,7 @@ export function LicenseGate({ children }: { children: React.ReactNode }) {
 }
 
 function LockScreen({ status }: { status: LicenseStatus }) {
-  const { state, device, leaveLobby, invite } = useStore();
+  const { state, device, leaveLobby, invite, updateDevice } = useStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [joining, setJoining] = useState(invite !== null);
@@ -78,6 +78,17 @@ function LockScreen({ status }: { status: LicenseStatus }) {
         </View>
       </View>
 
+      {device.kickedFrom ? (
+        <View style={[styles.alert, styles.alertInfo]}>
+          <Emoji3D emoji="🔒" size={30} />
+          <View style={styles.flex}>
+            <Text style={styles.alertTitle}>Lobby {device.kickedFrom} fermé</Text>
+            <Text style={styles.alertText}>Le gérant a fermé le lobby de l’équipe : vous avez été déconnecté.</Text>
+          </View>
+          <Button title="OK" small variant="secondary" onPress={() => updateDevice({ kickedFrom: null })} />
+        </View>
+      ) : null}
+
       {joining ? (
         <Card style={styles.joinCard}>
           <Text style={styles.cardTitle}>Rejoindre mon équipe</Text>
@@ -102,7 +113,7 @@ function LockScreen({ status }: { status: LicenseStatus }) {
       <SupportCard dark />
 
       {device.lobby ? (
-        <Button title="Quitter le lobby de l’équipe" variant="ghost" icon="exit-outline" onPress={leaveLobby} />
+        <Button title="Quitter le lobby de l’équipe" variant="ghost" icon="exit-outline" onPress={() => leaveLobby()} />
       ) : null}
 
       <Text style={styles.creator} accessibilityRole="link" onPress={() => router.push('/createur')}>
@@ -136,7 +147,7 @@ function TeamLockScreen() {
         </View>
       </View>
       {device.lobby ? (
-        <Button title={`Quitter le lobby ${device.lobby.code}`} variant="ghost" icon="exit-outline" onPress={leaveLobby} />
+        <Button title={`Quitter le lobby ${device.lobby.code}`} variant="ghost" icon="exit-outline" onPress={() => leaveLobby()} />
       ) : null}
     </ScrollView>
   );

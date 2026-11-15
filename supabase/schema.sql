@@ -18,6 +18,9 @@ create table if not exists public.caisse_lobbies (
   created_at timestamptz not null default now(),
   closed_at timestamptz
 );
+-- Restaurant (licence) propriétaire du lobby. Ajouté après coup : sans effet sur les lobbies existants.
+alter table public.caisse_lobbies add column if not exists license_id text;
+create index if not exists caisse_lobbies_license on public.caisse_lobbies (license_id) where closed_at is null;
 
 create table if not exists public.caisse_events (
   lobby_id text not null references public.caisse_lobbies(id) on delete cascade,
@@ -51,29 +54,38 @@ begin
 end;
 $$;
 
+-- Chaque restaurant (licence) a son propre lobby : une session séparée, avec un identifiant secret
+-- et un code tiré au hasard. Créer un nouveau lobby ferme l'ancien lobby de ce même restaurant
+-- (ses employés sont déconnectés), sans jamais toucher aux lobbies des autres restaurants.
 create or replace function public.caisse_create_lobby(p_snapshot jsonb)
 returns json
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_id text := replace(gen_random_uuid()::text, '-', '');
   v_code text;
   v_tries int := 0;
+  v_license text;
 begin
   if p_snapshot is null or jsonb_typeof(p_snapshot) <> 'object' then
     raise exception 'Données invalides';
   end if;
+  v_license := upper(trim(coalesce(p_snapshot->'license'->>'id', '')));
+  if v_license = '' then
+    raise exception 'Licence du restaurant manquante';
+  end if;
+  update caisse_lobbies set closed_at = now() where license_id = v_license and closed_at is null;
   loop
-    v_code := caisse_random_code();
+    v_code := caisse_random_text(6);
     exit when not exists (select 1 from caisse_lobbies where code = v_code);
     v_tries := v_tries + 1;
     if v_tries > 20 then
       raise exception 'Impossible de générer un code, réessayez';
     end if;
   end loop;
-  insert into caisse_lobbies (id, code, snapshot) values (v_id, v_code, p_snapshot);
+  insert into caisse_lobbies (id, code, snapshot, license_id) values (v_id, v_code, p_snapshot, v_license);
   return json_build_object('lobby_id', v_id, 'code', v_code);
 end;
 $$;

@@ -23,6 +23,10 @@ Ce système vous laisse le contrôle total. Le client paie par virement et envoi
    Le même serveur sert au lobby de l'équipe et aux licences. Pour des serveurs séparés, utilisez `EXPO_PUBLIC_LICENSE_URL` et `EXPO_PUBLIC_LICENSE_KEY`.
 6. Déposez le nouveau zip sur Netlify.
 
+### Après une mise à jour de l'application
+
+Quand je vous signale que `supabase/schema.sql` a changé, recollez **tout** le fichier dans **SQL Editor › New query › Run**. Cela ne supprime aucune donnée et ne touche pas à votre mot de passe.
+
 ## 2. Ce que voit votre client
 
 1. Écran **Abonnement**, ou écran de blocage : il choisit **Mensuel** ou **À vie**, puis **Payer**.

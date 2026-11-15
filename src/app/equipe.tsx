@@ -208,21 +208,21 @@ export default function TeamScreen() {
             onPress={() =>
               confirm(
                 'Quitter le lobby ?',
-                session.manager || session.admin
-                  ? 'Cet appareil garde une copie des données du restaurant.'
-                  : 'Cet appareil ne verra plus les commandes de l’équipe.',
-                store.leaveLobby,
+                device.lobby?.host
+                  ? 'Cet appareil garde une copie des données du restaurant. L’équipe reste dans le lobby.'
+                  : 'Cet appareil ne verra plus les commandes de l’équipe et retrouvera l’écran d’abonnement.',
+                () => store.leaveLobby(),
                 'Quitter',
               )
             }
           />
-          {allowedToCreate ? (
+          {device.lobby?.host ? (
             <Button
               title="Fermer le lobby pour toute l’équipe"
               variant="ghost"
               icon="close-circle-outline"
               onPress={() =>
-                confirm('Fermer le lobby ?', 'Plus personne ne pourra le rejoindre ni le synchroniser.', () => {
+                confirm('Fermer le lobby ?', 'Tous les employés connectés seront déconnectés dans les secondes qui suivent et retrouveront l’écran d’abonnement.', () => {
                   store.closeLobby().catch((e: unknown) => notify('Erreur', e instanceof Error ? e.message : 'Erreur'));
                 }, 'Fermer')
               }

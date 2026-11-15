@@ -67,7 +67,7 @@ interface StoreValue {
   clearInvite: () => void;
   createLobby: (server: ServerConfig) => Promise<string>;
   joinLobby: (server: ServerConfig, code: string, profile: { name: string; role: Role }) => Promise<void>;
-  leaveLobby: () => void;
+  leaveLobby: (opts?: { closed?: boolean }) => void;
   closeLobby: () => Promise<void>;
 }
 
@@ -113,6 +113,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // Références toujours à jour, utilisées par la boucle de synchronisation.
   const syncRef = useRef<SyncData | null>(null);
   const deviceRef = useRef<DeviceState | null>(null);
+  const leaveRef = useRef<(opts?: { closed?: boolean }) => void>(() => undefined);
   const kickRef = useRef<() => void>(() => {});
 
   const commitSync = useCallback((next: SyncData | null) => {
@@ -294,6 +295,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           await backend.saveSnapshot(lobby.server, lobby.lobbyId, after.confirmed, after.seq);
           if (syncRef.current) commitSync({ ...syncRef.current, snapshotSeq: after.seq });
         }
+        if (closed && !stopped) {
+          // Le gérant a fermé le lobby : tout le monde sort (les employés retrouvent l'écran d'abonnement).
+          stopped = true;
+          leaveRef.current({ closed: true });
+          return;
+        }
         if (!stopped) {
           const status: SyncStatus = closed ? 'ferme' : 'ok';
           const now = Date.now();
@@ -305,6 +312,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           );
         }
       } catch (e) {
+        if (!stopped && /Lobby fermé ou introuvable/.test(errorMessage(e))) {
+          stopped = true;
+          leaveRef.current({ closed: true });
+          return;
+        }
         if (!stopped) {
           const message = errorMessage(e);
           setSync((s) => (s.status === 'hors_ligne' && s.error === message ? s : { ...s, status: 'hors_ligne', error: message }));
@@ -379,22 +391,37 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           role: profile.role,
           lobby: { lobbyId: res.lobby_id, code: res.code, server, host: false },
           lastLobby: null,
+          kickedFrom: null,
         });
       }
     },
     [commitSync, commitDevice],
   );
 
-  const leaveLobby = useCallback(() => {
-    const link = deviceRef.current?.lobby ?? null;
-    // Seul l'appareil qui a créé le lobby garde une copie des données du restaurant (et donc son abonnement).
-    // Un employé retrouve ses propres données : sans abonnement personnel, l'écran de paiement revient.
-    if (link?.host && state) setLocal(state);
-    commitSync(null);
-    if (deviceRef.current) {
-      commitDevice({ ...deviceRef.current, lobby: null, lastLobby: link && !link.host ? link : (deviceRef.current.lastLobby ?? null) });
-    }
-  }, [state, commitSync, commitDevice]);
+  const leaveLobby = useCallback(
+    (opts?: { closed?: boolean }) => {
+      const link = deviceRef.current?.lobby ?? null;
+      const closed = opts?.closed === true;
+      // Seul l'appareil qui a créé le lobby garde une copie des données du restaurant (et donc son abonnement).
+      // Un employé retrouve ses propres données : sans abonnement personnel, l'écran de paiement revient.
+      if (link?.host && state) setLocal(state);
+      commitSync(null);
+      if (deviceRef.current) {
+        const member = !!link && !link.host;
+        commitDevice({
+          ...deviceRef.current,
+          lobby: null,
+          // Lobby fermé : plus rien à rejoindre ; sinon l'employé peut revenir en un geste.
+          lastLobby: closed ? null : member ? link : (deviceRef.current.lastLobby ?? null),
+          kickedFrom: closed && member ? link.code : null,
+        });
+      }
+    },
+    [state, commitSync, commitDevice],
+  );
+  useEffect(() => {
+    leaveRef.current = leaveLobby;
+  }, [leaveLobby]);
 
   const closeLobby = useCallback(async () => {
     const lobby = deviceRef.current?.lobby;

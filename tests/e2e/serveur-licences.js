@@ -132,6 +132,27 @@ const randomLicense = () => {
   assert.ok(!('token_hash' in mine[0]) && !('key_hash' in mine[0]), 'aucune empreinte exposée');
   console.log('Tableau de bord : historique complet, aucune empreinte exposée');
 
+  // Lobbies : un par restaurant, sans lien entre restaurants
+  const snap = (licenseId, name) => ({ license: { id: licenseId }, settings: { restaurantName: name } });
+  const licA = randomLicense();
+  const licB = randomLicense();
+  const a1 = await rpc('caisse_create_lobby', { p_snapshot: snap(licA, 'Chez A') });
+  const b1 = await rpc('caisse_create_lobby', { p_snapshot: snap(licB, 'Chez B') });
+  assert.notEqual(a1.code, b1.code);
+  assert.notEqual(a1.lobby_id, b1.lobby_id);
+  const joinB = await rpc('caisse_join_lobby', { p_code: b1.code });
+  assert.equal(joinB.snapshot.settings.restaurantName, 'Chez B');
+  await rpc('caisse_push', { p_lobby: a1.lobby_id, p_ops: [{ op_id: 'op-a', op: { t: 'clearHistory' } }] });
+  assert.equal((await rpc('caisse_pull', { p_lobby: b1.lobby_id, p_after: 0 })).events.length, 0, 'B ne voit rien de A');
+  // Nouveau lobby du restaurant A : son ancien lobby est fermé, celui de B n'est pas touché.
+  const a2 = await rpc('caisse_create_lobby', { p_snapshot: snap(licA, 'Chez A') });
+  assert.notEqual(a2.code, a1.code);
+  assert.equal((await rpc('caisse_pull', { p_lobby: a1.lobby_id, p_after: 0 })).closed, true);
+  assert.equal((await rpc('caisse_pull', { p_lobby: b1.lobby_id, p_after: 0 })).closed, false);
+  await fails('caisse_join_lobby', { p_code: a1.code }, /Aucun lobby ouvert/);
+  await fails('caisse_create_lobby', { p_snapshot: { settings: {} } }, /Licence/);
+  console.log('Lobbies : un par restaurant, isolés, nouveau lobby = ancien fermé (sans toucher aux autres)');
+
   // Blocage après 8 mots de passe faux (puis remise à zéro pour les tests suivants par setup-db.sh)
   for (let i = 0; i < 8; i++) await rpc('caisse_admin_login', { p_password: `faux-${i}` });
   const locked = await rpc('caisse_admin_login', { p_password: PASSWORD });

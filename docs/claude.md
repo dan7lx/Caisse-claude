@@ -55,8 +55,9 @@ src/
     defaults.ts             Données de démo, `normalize` (migration des anciennes données)
     StoreProvider.tsx       État, sauvegarde, boucle de synchro, session gérant, clôture de minuit, useNow
     lobby.ts                `isLobbyMember` : employé (a rejoint) ou gérant (a créé le lobby)
-    store.test.ts           Tests unitaires (45)
+    store.test.ts           Tests unitaires (46)
   sync/backend.ts           Appels RPC Supabase, liens d’invitation
+  sync/scan.ts              Lecture d’un QR code scanné (lien d’invitation ou code)
   license/license.ts        Statut d’abonnement, démo, rappel, codes démo/admin/créateur, reconnaissance des clés
   license/server.ts         Client du serveur de paiements et licences (RPC), règles locales (clé, sync, liens WhatsApp)
   license/dashboard.ts      Calculs de l’Espace créateur (à traiter, santé des licences, chiffres)
@@ -90,7 +91,10 @@ docs/captures/              Captures d’écran du README
    - l’appareil qui **crée** le lobby est le gérant (`host: true`) : il garde les données (et l’abonnement) en quittant ;
    - un appareil qui **rejoint** est un employé : aucun accès à l’abonnement (ni page, ni bandeau, ni rappel ; écran « abonnement du restaurant inactif » si besoin) ;
    - en quittant le lobby, ou après une **fermeture complète** de l’app, l’employé retrouve ses propres données : sans abonnement personnel, l’écran de paiement revient. `device.lastLobby` permet de rejoindre à nouveau en un geste ; les modifications non envoyées sont gardées et renvoyées s’il rejoint le même lobby ;
-   - un ancien lien sans `host` est traité comme un employé.
+   - un ancien lien sans `host` est traité comme un employé ;
+   - **fermeture par le gérant** : dès que `caisse_pull` répond `closed` (ou que `caisse_push` refuse « Lobby fermé »), chaque appareil quitte le lobby (`leaveLobby({ closed: true })`) ; l’employé voit « Lobby XXX fermé » sur l’écran d’abonnement (`device.kickedFrom`).
+7. **Un lobby par restaurant** : `caisse_lobbies.license_id` (licence du créateur, lue dans l’instantané). Créer un lobby ferme l’ancien lobby **de la même licence** (ses employés sont exclus) sans toucher aux autres restaurants. Codes tirés par `caisse_random_text` (pgcrypto). Tous les clients partagent le même serveur Supabase, mais chaque lobby est une session séparée (identifiant secret, journal d’opérations à part).
+8. **Rejoindre** : code à 6 caractères, ou scan du QR code d’invitation dans l’app (`QrScanner.tsx` : caméra + jsQR, web uniquement ; `sync/scan.ts` lit le lien ou le code).
 
 ### Règles métier importantes
 
@@ -203,6 +207,12 @@ npm start               # serveur de développement Expo
 
 > Une entrée par session, la plus récente en haut. Pour voir ce qui a changé depuis la dernière mise à jour de ce fichier :
 > `git log --oneline "$(git log -1 --format=%h -- docs/claude.md)"..HEAD`
+
+### 2026-11-15 (suite 2) — Scan du QR code, fermeture du lobby, un lobby par restaurant
+- Rejoindre : bouton « Scanner le QR code du gérant » (caméra arrière, jsQR 1.4.0, Apache-2.0) en plus du code.
+- Fermeture du lobby : les employés n’étaient pas exclus (seul un point rouge s’affichait) ; ils quittent maintenant le lobby automatiquement. Bouton « Fermer pour toute l’équipe » réservé à l’appareil qui a créé le lobby.
+- Serveur : lobby rattaché à la licence du restaurant, codes cryptographiques, un lobby ouvert par restaurant. **Le propriétaire doit relancer `supabase/schema.sql` dans Supabase.**
+- e2e : scan réel d’un QR (caméra simulée `tests/e2e/fake-camera.js`), exclusion à la fermeture, isolation de deux restaurants (`serveur-licences.js`).
 
 ### 2026-11-15 (suite) — Écran iPhone, employés du lobby, bandeau Netlify
 - Haut de l’écran masqué par l’heure et la batterie, bande marron en bas : barre d’état iOS passée de `black-translucent` à `black`, fond de page `#07080D`, `#root` en `position: fixed`, et marges `env(safe-area-inset-*)` en secours (`safeInset` dans `theme.ts`). **Non testable ici (pas d’iPhone)** : si l’icône était déjà sur l’écran d’accueil, la supprimer puis la rajouter.

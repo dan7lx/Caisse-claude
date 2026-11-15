@@ -1,6 +1,7 @@
 // Scénario « abonnement + lobby » : mode démo, paiement par virement, code gérant, lobby créer/rejoindre, cuisson, cuisine.
 const { chromium, devices } = require('playwright');
 const CODES = require('./codes');
+const { qrVideo } = require('./fake-camera');
 
 const APP = 'http://localhost:8766';
 const SERVER = 'http://localhost:8790';
@@ -173,6 +174,36 @@ async function pin(page, code, submit) {
   await m.getByRole('button', { name: /^Table 1, Prêt à servir/ }).waitFor({ timeout: 15000 });
   console.log('Salle : table 1 prête à servir');
   await shot(m, 'v3-13-salle');
+
+  // Un employé rejoint en scannant le QR code d'invitation avec la caméra (caméra simulée).
+  const invite = `${APP}/?equipe=${code}&srv=${encodeURIComponent(Buffer.from(`${SERVER}|${KEY}`).toString('base64'))}`;
+  const camBrowser = await chromium.launch({
+    args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-video-capture=${qrVideo(invite)}`],
+  });
+  const ctxQ = await camBrowser.newContext(opts);
+  await ctxQ.grantPermissions(['camera'], { origin: APP });
+  const q = await ctxQ.newPage();
+  globalThis.pages.q = q;
+  attach(q, 'Q', errors);
+  await q.goto(APP);
+  await q.getByRole('button', { name: /rejoindre mon équipe/ }).click();
+  await q.getByLabel('Votre prénom').fill('Léa');
+  await q.getByRole('button', { name: 'Scanner le QR code du gérant' }).click();
+  await q.getByRole('button', { name: /^Table 1,/ }).waitFor({ timeout: 20000 });
+  console.log('QR code scanné avec la caméra : employée connectée au lobby sans saisir de code');
+  await shot(q, 'v3-14-scan-rejoint');
+
+  // Le gérant ferme le lobby : tous les employés sont exclus et retrouvent l'écran d'abonnement.
+  await m.getByRole('button', { name: /^Lobby / }).filter({ visible: true }).first().click();
+  await m.getByRole('button', { name: 'Fermer le lobby pour toute l’équipe' }).click();
+  for (const [who, page] of [['cuisine', k], ['salle', q]]) {
+    await page.getByText(`Lobby ${code} fermé`).waitFor({ timeout: 15000 });
+    await page.getByText('Activez votre abonnement').waitFor();
+    if (await page.getByText('Saignant').count()) throw new Error(`l’appareil ${who} voit encore les commandes`);
+  }
+  console.log('Lobby fermé par le gérant : employés exclus, écran d’abonnement de retour');
+  await shot(k, 'v3-15-exclu');
+  await camBrowser.close();
 
   console.log('erreurs :', JSON.stringify(errors));
   await browser.close();

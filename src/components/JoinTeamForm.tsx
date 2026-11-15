@@ -8,6 +8,8 @@ import { colors } from '../theme';
 import { haptic } from '../utils/haptics';
 import { useToast } from './Toast';
 import { CodeBoxes } from './CodeBoxes';
+import { QrScanner } from './QrScanner';
+import { parseScannedLobby } from '../sync/scan';
 import { Button, Field, Segmented } from './ui';
 
 interface Props {
@@ -26,6 +28,7 @@ export function JoinTeamForm({ dark, onJoined }: Props) {
   const [key, setKey] = useState(knownServer?.anonKey ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -41,14 +44,17 @@ export function JoinTeamForm({ dark, onJoined }: Props) {
   const needsServer = !knownServer;
   const fg = dark ? colors.onDark : colors.text;
 
-  const join = async () => {
-    if (code.trim().length < 6) return setError('Le code du lobby contient 6 caractères.');
+  const join = async (override?: { code: string; url: string; key: string }) => {
+    const c = override?.code ?? code;
+    const u = override?.url ?? url;
+    const k = override?.key ?? key;
+    if (c.trim().length < 6) return setError('Le code du lobby contient 6 caractères.');
     if (!name.trim()) return setError('Indiquez votre prénom.');
-    if (!url.trim() || !key.trim()) return setError('Adresse du serveur manquante : utilisez le lien d’invitation du gérant.');
+    if (!u.trim() || !k.trim()) return setError('Adresse du serveur manquante : utilisez le lien d’invitation du gérant.');
     setBusy(true);
     setError(null);
     try {
-      await joinLobby({ url, anonKey: key }, code, { name, role });
+      await joinLobby({ url: u, anonKey: k }, c, { name, role });
       clearInvite();
       haptic.success();
       toast('Bienvenue dans l’équipe !', '👋');
@@ -60,9 +66,26 @@ export function JoinTeamForm({ dark, onJoined }: Props) {
     }
   };
 
+  // QR code scanné : remplit le code (et le serveur), puis rejoint directement si le prénom est connu.
+  const onScan = (text: string): string | null => {
+    const found = parseScannedLobby(text);
+    if (!found) return 'Ce QR code n’est pas une invitation de lobby.';
+    const u = found.server?.url ?? url;
+    const k = found.server?.anonKey ?? key;
+    setCode(found.code);
+    setUrl(u);
+    setKey(k);
+    setScanning(false);
+    if (name.trim()) void join({ code: found.code, url: u, key: k });
+    else toast('Code scanné : indiquez votre prénom', '📷');
+    return null;
+  };
+
   return (
     <View style={styles.wrap}>
-      <Text style={[styles.label, { color: fg }]}>Code du lobby (6 caractères)</Text>
+      <Button title="Scanner le QR code du gérant" icon="qr-code-outline" variant="secondary" large onPress={() => setScanning(true)} />
+      {scanning ? <QrScanner onClose={() => setScanning(false)} onScan={onScan} /> : null}
+      <Text style={[styles.label, { color: fg }]}>Ou saisissez le code du lobby (6 caractères)</Text>
       <CodeBoxes value={code} onChange={setCode} dark={dark} />
       <Text style={[styles.label, { color: fg }]}>Votre prénom</Text>
       <TextInput
@@ -94,7 +117,7 @@ export function JoinTeamForm({ dark, onJoined }: Props) {
         </View>
       ) : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button title={busy ? 'Connexion…' : 'Rejoindre l’équipe'} icon="people" onPress={join} disabled={busy || code.length < 6} large />
+      <Button title={busy ? 'Connexion…' : 'Rejoindre l’équipe'} icon="people" onPress={() => join()} disabled={busy || code.length < 6} large />
     </View>
   );
 }

@@ -40,6 +40,8 @@ import {
 } from './actions';
 import { createInitialState, migrate, normalize } from './defaults';
 import { isLobbyMember } from './lobby';
+import { makeInviteLink } from '../sync/backend';
+import { parseScannedLobby } from '../sync/scan';
 import { reduce, reduceAll, type Op } from './ops';
 import { closureDoc, receiptDoc } from '../ticket/doc';
 import { cleanText, formatRow } from '../ticket/layout';
@@ -352,6 +354,17 @@ describe('lobby : employés et gérant', () => {
     assert.equal(isLobbyMember({ lobby: { lobbyId: 'l', code: 'ABC234', server, host: true } }), false);
     assert.equal(isLobbyMember({ lobby: { lobbyId: 'l', code: 'ABC234', server, host: false } }), true);
     assert.equal(isLobbyMember({ lobby: { lobbyId: 'l', code: 'ABC234', server } }), true);
+  });
+});
+
+describe('scan du QR code d’invitation', () => {
+  it('lit le lien d’invitation (code et serveur) ou un code seul', () => {
+    const server = { url: 'https://abcd.supabase.co', anonKey: 'sb_publishable_xyz' };
+    const link = makeInviteLink('https://caisse.netlify.app', 'K7M2QX', server);
+    assert.deepEqual(parseScannedLobby(link), { code: 'K7M2QX', server });
+    assert.deepEqual(parseScannedLobby(' k7m2qx '), { code: 'K7M2QX', server: null });
+    assert.equal(parseScannedLobby('https://exemple.com/menu'), null);
+    assert.equal(parseScannedLobby('BONJOUR123'), null);
   });
 });
 

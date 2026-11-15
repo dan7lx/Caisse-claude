@@ -232,6 +232,8 @@ export interface DeviceState {
   pinLockedUntil: number | null;
   /** Dernier lobby rejoint en tant qu'employé (pour le rejoindre à nouveau en un geste). */
   lastLobby?: LobbyLink | null;
+  /** Code du lobby que le gérant vient de fermer (message affiché à l'employé exclu). */
+  kickedFrom?: string | null;
   /** Commande de paiement en cours de ce client (identifiant + jeton secret de suivi). */
   pendingPayment: PendingPayment | null;
 }
