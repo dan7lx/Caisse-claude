@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { formatCountdown, licenseStatus, type LicenseStatus } from '../license/license';
-import { useNow, useStore } from '../store/StoreProvider';
+import { isLobbyMember, useNow, useStore } from '../store/StoreProvider';
 import { colors, fonts } from '../theme';
 import { Emoji3D } from './Emoji3D';
 import { formatLongDate } from './PaymentCalendar';
@@ -23,14 +23,15 @@ function humanCountdown(ms: number): string {
  * Avant l'échéance mensuelle : rappel de paiement (5 jours avant le 1er).
  */
 export function StatusStrip() {
-  const { state } = useStore();
+  const { state, device } = useStore();
   const router = useRouter();
   const narrow = useWindowDimensions().width < 370;
   const coarse = licenseStatus(state.license);
   // Mis à jour chaque seconde pendant l'essai, mais seulement dans ce bandeau.
   const now = useNow(coarse.demo ? 1000 : 15000);
   const status = licenseStatus(state.license, now);
-  if (!hasStatusStrip(status)) return null;
+  // Employé dans le lobby : l'abonnement est l'affaire du gérant, pas de bandeau ni de bouton de paiement.
+  if (!hasStatusStrip(status) || isLobbyMember(device)) return null;
 
   const demo = status.demo && status.demoEndsAt !== null;
   const remaining = demo ? (status.demoEndsAt ?? now) - now : 0;

@@ -4,7 +4,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useStore } from '../store/StoreProvider';
-import { colors, fonts, roleEmoji, roleLabel } from '../theme';
+import { colors, fonts, roleEmoji, roleLabel, safeInset } from '../theme';
 import { useLayout } from '../utils/layout';
 import { Emoji3D } from './Emoji3D';
 import { TeamButton } from './HeaderParts';
@@ -25,7 +25,7 @@ export function ScreenHeader({ title, subtitle, logo, children }: Props) {
   const insets = useSafeAreaInsets();
   const { small } = useLayout();
   return (
-    <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+    <View style={[styles.header, { paddingTop: safeInset('top', insets.top, 12) }]}>
       <View style={styles.row}>
         {logo ? <Image source={{ uri: logo }} style={styles.logo} accessibilityLabel="Logo" /> : null}
         <View style={styles.flex}>

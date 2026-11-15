@@ -145,6 +145,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const validSync =
         dev.lobby && sd && sd.lobbyId === dev.lobby.lobbyId ? { ...sd, confirmed: normalize(sd.confirmed) } : null;
       if (!validSync) dev.lobby = null;
+      // Employé : après une fermeture complète de l'application, il n'est plus dans le lobby.
+      // Son appareil retrouve ses propres données (sans abonnement : écran de paiement).
+      // Les modifications pas encore envoyées sont gardées et repartiront s'il rejoint le même lobby.
+      if (dev.lobby && !dev.lobby.host) {
+        dev.lastLobby = dev.lobby;
+        dev.lobby = null;
+      }
 
       if (Platform.OS === 'web') {
         const loc = (globalThis as { location?: { search: string } }).location;
@@ -334,7 +341,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const res = await backend.createLobby(server, snapshot);
       commitSync({ lobbyId: res.lobby_id, seq: 0, snapshotSeq: 0, confirmed: snapshot, pending: [] });
       if (deviceRef.current) {
-        commitDevice({ ...deviceRef.current, server, lobby: { lobbyId: res.lobby_id, code: res.code, server } });
+        commitDevice({ ...deviceRef.current, server, lobby: { lobbyId: res.lobby_id, code: res.code, server, host: true } });
       }
       return res.code;
     },
@@ -358,9 +365,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (pulled.events.length < 500) break;
       }
       const name = profile.name.trim() || 'Serveur';
+      // Retour dans le même lobby : les modifications pas encore envoyées repartent (le serveur ignore les doublons).
+      const previous = syncRef.current && syncRef.current.lobbyId === res.lobby_id ? syncRef.current.pending : [];
       const pending: PendingOp[] = confirmed.staff.some((m) => m.name === name)
-        ? []
-        : [{ opId: uid(), op: { t: 'addStaff', member: newStaff(name, profile.role) } }];
+        ? [...previous]
+        : [...previous, { opId: uid(), op: { t: 'addStaff', member: newStaff(name, profile.role) } }];
       commitSync({ lobbyId: res.lobby_id, seq, snapshotSeq: res.snapshot_seq, confirmed, pending });
       if (deviceRef.current) {
         commitDevice({
@@ -368,7 +377,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           server,
           currentServer: name,
           role: profile.role,
-          lobby: { lobbyId: res.lobby_id, code: res.code, server },
+          lobby: { lobbyId: res.lobby_id, code: res.code, server, host: false },
+          lastLobby: null,
         });
       }
     },
@@ -376,11 +386,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const leaveLobby = useCallback(() => {
-    // Le gérant garde une copie des données du restaurant sur son appareil.
-    if ((session.manager || session.admin) && state) setLocal(state);
+    const link = deviceRef.current?.lobby ?? null;
+    // Seul l'appareil qui a créé le lobby garde une copie des données du restaurant (et donc son abonnement).
+    // Un employé retrouve ses propres données : sans abonnement personnel, l'écran de paiement revient.
+    if (link?.host && state) setLocal(state);
     commitSync(null);
-    if (deviceRef.current) commitDevice({ ...deviceRef.current, lobby: null });
-  }, [session, state, commitSync, commitDevice]);
+    if (deviceRef.current) {
+      commitDevice({ ...deviceRef.current, lobby: null, lastLobby: link && !link.host ? link : (deviceRef.current.lastLobby ?? null) });
+    }
+  }, [state, commitSync, commitDevice]);
 
   const closeLobby = useCallback(async () => {
     const lobby = deviceRef.current?.lobby;
@@ -494,6 +508,8 @@ export function useStore(): StoreValue {
   if (!value) throw new Error('useStore doit être utilisé dans <StoreProvider>');
   return value;
 }
+
+export { isLobbyMember } from './lobby';
 
 /** Retourne l'heure courante, rafraîchie à intervalle régulier (pour les chronos). */
 export function useNow(intervalMs = 30000): number {

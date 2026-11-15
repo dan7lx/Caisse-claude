@@ -25,8 +25,8 @@
       "favicon": "./assets/favicon.png",
       "name": "Caisse Resto",
       "shortName": "Caisse",
-      "themeColor": "#16120F",
-      "backgroundColor": "#16120F"
+      "themeColor": "#07080D",
+      "backgroundColor": "#07080D"
     },
     "plugins": [
       "expo-router",

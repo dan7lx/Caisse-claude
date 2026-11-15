@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { licenseStatus, type LicenseStatus } from '../license/license';
 import { useLicenseServerSync } from '../license/useLicenseServer';
-import { useNow, useStore } from '../store/StoreProvider';
+import { isLobbyMember, useNow, useStore } from '../store/StoreProvider';
 import { colors, fonts } from '../theme';
 import { Emoji3D } from './Emoji3D';
 import { JoinTeamForm } from './JoinTeamForm';
@@ -23,17 +23,19 @@ const todayKey = (now: number) => {
 
 /** Bloque l'application dès que l'abonnement n'est plus payé (vérifié toutes les 15 s et auprès du serveur). */
 export function LicenseGate({ children }: { children: React.ReactNode }) {
-  const { state } = useStore();
+  const { state, device } = useStore();
   const now = useNow(15000);
   const pathname = usePathname();
   useLicenseServerSync();
   const status = licenseStatus(state.license, now);
+  const member = isLobbyMember(device);
   // L'Espace créateur reste accessible au créateur, même sur un appareil sans abonnement.
-  if (!status.active && !pathname.startsWith('/createur')) return <LockScreen status={status} />;
+  if (!status.active && !pathname.startsWith('/createur')) return member ? <TeamLockScreen /> : <LockScreen status={status} />;
   return (
     <>
       {children}
-      <ReminderModal status={status} now={now} />
+      {/* Employé dans le lobby : pas de rappel ni de paiement, c'est l'affaire du gérant. */}
+      {member ? null : <ReminderModal status={status} now={now} />}
     </>
   );
 }
@@ -106,6 +108,36 @@ function LockScreen({ status }: { status: LicenseStatus }) {
       <Text style={styles.creator} accessibilityRole="link" onPress={() => router.push('/createur')}>
         Espace créateur
       </Text>
+    </ScrollView>
+  );
+}
+
+/** Employé dans le lobby alors que l'abonnement du restaurant n'est plus actif : il prévient le gérant. */
+function TeamLockScreen() {
+  const { state, device, leaveLobby } = useStore();
+  const insets = useSafeAreaInsets();
+  return (
+    <ScrollView style={styles.screen} contentContainerStyle={[styles.content, { paddingTop: insets.top + 28, paddingBottom: insets.bottom + 40 }]}>
+      <View style={styles.brand}>
+        <View style={styles.logo}>
+          <Emoji3D emoji="🔒" size={46} />
+        </View>
+        <Text style={styles.brandName}>Caisse Resto</Text>
+        <Text style={styles.restaurant}>{state.settings.restaurantName}</Text>
+      </View>
+      <View style={[styles.alert, styles.alertDanger]}>
+        <Emoji3D emoji="⚠️" size={34} />
+        <View style={styles.flex}>
+          <Text style={styles.alertTitle}>Abonnement du restaurant inactif</Text>
+          <Text style={styles.alertText}>
+            L’application de l’équipe est en pause. Prévenez votre gérant : dès qu’il aura renouvelé l’abonnement, vous
+            pourrez reprendre le service.
+          </Text>
+        </View>
+      </View>
+      {device.lobby ? (
+        <Button title={`Quitter le lobby ${device.lobby.code}`} variant="ghost" icon="exit-outline" onPress={leaveLobby} />
+      ) : null}
     </ScrollView>
   );
 }

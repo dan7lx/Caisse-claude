@@ -39,6 +39,7 @@ import {
   setSecurity,
 } from './actions';
 import { createInitialState, migrate, normalize } from './defaults';
+import { isLobbyMember } from './lobby';
 import { reduce, reduceAll, type Op } from './ops';
 import { closureDoc, receiptDoc } from '../ticket/doc';
 import { cleanText, formatRow } from '../ticket/layout';
@@ -341,6 +342,16 @@ describe('abonnement', () => {
     assert.equal(st.expired, 1);
     assert.equal(st.revenueThisMonth, 4599);
     assert.equal(st.revenueTotal, 9198);
+  });
+});
+
+describe('lobby : employés et gérant', () => {
+  const server = { url: 'https://x.supabase.co', anonKey: 'k' };
+  it('seul l’appareil qui a créé le lobby est le gérant ; les anciens liens sont des employés', () => {
+    assert.equal(isLobbyMember({ lobby: null }), false);
+    assert.equal(isLobbyMember({ lobby: { lobbyId: 'l', code: 'ABC234', server, host: true } }), false);
+    assert.equal(isLobbyMember({ lobby: { lobbyId: 'l', code: 'ABC234', server, host: false } }), true);
+    assert.equal(isLobbyMember({ lobby: { lobbyId: 'l', code: 'ABC234', server } }), true);
   });
 });
 

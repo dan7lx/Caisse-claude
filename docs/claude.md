@@ -54,7 +54,8 @@ src/
     selectors.ts            Calculs dérivés (totaux, TVA, stats, tickets cuisine, clôtures)
     defaults.ts             Données de démo, `normalize` (migration des anciennes données)
     StoreProvider.tsx       État, sauvegarde, boucle de synchro, session gérant, clôture de minuit, useNow
-    store.test.ts           Tests unitaires (44)
+    lobby.ts                `isLobbyMember` : employé (a rejoint) ou gérant (a créé le lobby)
+    store.test.ts           Tests unitaires (45)
   sync/backend.ts           Appels RPC Supabase, liens d’invitation
   license/license.ts        Statut d’abonnement, démo, rappel, codes démo/admin/créateur, reconnaissance des clés
   license/server.ts         Client du serveur de paiements et licences (RPC), règles locales (clé, sync, liens WhatsApp)
@@ -84,7 +85,12 @@ docs/captures/              Captures d’écran du README
    - chaque appareil rejoue le même journal ordonné (seq), dédoublonné par `op_id` ;
    - état affiché = état confirmé + opérations en attente (file `caisse-resto:sync`, rejouée si le réseau coupe) ;
    - un instantané (`caisse_save_snapshot`) accélère l’arrivée des nouveaux.
-5. La licence fait partie de l’état partagé : tous les appareils d’un lobby partagent l’abonnement du restaurant.
+5. La licence fait partie de l’état partagé : tous les appareils d’un lobby travaillent sous l’abonnement du restaurant.
+6. **Gérant vs employé** (`LobbyLink.host`, `isLobbyMember` dans `store/lobby.ts`) :
+   - l’appareil qui **crée** le lobby est le gérant (`host: true`) : il garde les données (et l’abonnement) en quittant ;
+   - un appareil qui **rejoint** est un employé : aucun accès à l’abonnement (ni page, ni bandeau, ni rappel ; écran « abonnement du restaurant inactif » si besoin) ;
+   - en quittant le lobby, ou après une **fermeture complète** de l’app, l’employé retrouve ses propres données : sans abonnement personnel, l’écran de paiement revient. `device.lastLobby` permet de rejoindre à nouveau en un geste ; les modifications non envoyées sont gardées et renvoyées s’il rejoint le même lobby ;
+   - un ancien lien sans `host` est traité comme un employé.
 
 ### Règles métier importantes
 
@@ -197,6 +203,11 @@ npm start               # serveur de développement Expo
 
 > Une entrée par session, la plus récente en haut. Pour voir ce qui a changé depuis la dernière mise à jour de ce fichier :
 > `git log --oneline "$(git log -1 --format=%h -- docs/claude.md)"..HEAD`
+
+### 2026-11-15 (suite) — Écran iPhone, employés du lobby, bandeau Netlify
+- Haut de l’écran masqué par l’heure et la batterie, bande marron en bas : barre d’état iOS passée de `black-translucent` à `black`, fond de page `#07080D`, `#root` en `position: fixed`, et marges `env(safe-area-inset-*)` en secours (`safeInset` dans `theme.ts`). **Non testable ici (pas d’iPhone)** : si l’icône était déjà sur l’écran d’accueil, la supprimer puis la rajouter.
+- Lobby : un employé ne prend plus l’abonnement du restaurant (avant : en quittant avec la Gestion ouverte, les données et la licence étaient recopiées). Voir § 3 › Flux de données, point 6.
+- « Powered by Netlify » : badge ajouté par Netlify (offre gratuite), pas par l’app. Solution officielle : réglage du projet Netlify (Project configuration › General › Powered by Netlify badge). Rien n’est masqué par le code.
 
 ### 2026-11-15 — Design « verre sombre », photos de produits, nouveau code créateur
 - Skill fourni par le propriétaire (`premium-3d-glass`, générateur de site vitrine 3D) : son langage visuel est repris (verre, palette, Space Grotesk), sans le moteur Three.js (trop lourd pour une caisse en service).

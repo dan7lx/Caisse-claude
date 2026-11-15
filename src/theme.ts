@@ -108,6 +108,16 @@ export const heroGlow: ViewStyle = webOnly({
     'radial-gradient(120% 90% at 0% 0%, rgba(77, 140, 255, 0.28), rgba(77, 140, 255, 0) 55%), radial-gradient(90% 80% at 100% 100%, rgba(143, 82, 245, 0.22), rgba(143, 82, 245, 0) 60%)',
 });
 
+/**
+ * Marge de sécurité (encoche, barre d'accueil) : la plus grande entre la valeur calculée par
+ * react-native-safe-area-context et celle donnée directement par le navigateur (`env()`),
+ * car la première vaut parfois 0 dans une application web installée sur iPhone.
+ */
+export function safeInset(edge: 'top' | 'bottom', computed: number, extra = 0): number {
+  if (!web) return computed + extra;
+  return `calc(max(${computed}px, env(safe-area-inset-${edge}, 0px)) + ${extra}px)` as unknown as number;
+}
+
 /** Texte lisible (clair ou foncé) sur une couleur de fond « #RRGGBB ». */
 export function readableOn(hex: string): string {
   const m = /^#([0-9a-f]{6})$/i.exec(hex);

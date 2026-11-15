@@ -218,8 +218,28 @@ const tab = (page, name) => page.getByText(name, { exact: true }).last();
   console.log('Cuisine : reçoit le plat, pas la boisson (envoyée au bar)');
   await shot(k, 'v4-10-cuisine-ticket');
 
-  // Quitter le lobby : l'application redevient complète
-  await k.getByRole('button', { name: /^Lobby / }).first().click();
+  // Fermeture complète de l'application : l'employé sort du lobby, l'écran de paiement revient.
+  await k.reload();
+  await k.getByText('Activez votre abonnement').waitFor({ timeout: 15000 });
+  if (await k.getByText('Pavé de saumon').count()) throw new Error('les données du restaurant sont restées après fermeture');
+  console.log('Fermeture complète : employé sorti du lobby, écran de paiement de retour');
+  await shot(k, 'v4-10b-employe-ferme');
+  // Il rejoint son équipe en un geste : code, prénom et poste déjà remplis.
+  await k.getByRole('button', { name: /rejoindre mon équipe/ }).click();
+  await k.getByRole('button', { name: 'Rejoindre l’équipe' }).click();
+  await k.getByText('Pavé de saumon').first().waitFor({ timeout: 15000 });
+  console.log('Retour dans le lobby en un geste (code, prénom et poste mémorisés)');
+
+  // Employé dans le lobby : aucun accès à l'abonnement, même avec le code gérant.
+  await tab(k, 'Gestion').click();
+  await pin(k, '2580');
+  await k.getByText('Identité & logo').waitFor();
+  if (await k.getByText('Abonnement', { exact: true }).count()) throw new Error('l’employé voit l’abonnement');
+  if (await k.getByText('ESSAI GRATUIT · TEMPS RESTANT').count()) throw new Error('l’employé voit le bandeau d’abonnement');
+  console.log('Employé dans le lobby : Gestion sans abonnement');
+
+  // Quitter le lobby (Gestion ouverte) : l'employé ne garde pas l'abonnement du restaurant.
+  await k.getByRole('button', { name: /^Lobby / }).filter({ visible: true }).first().click();
   await k.getByRole('button', { name: 'Quitter le lobby' }).click();
   // Hors lobby, ce téléphone d'employé redevient tel qu'à l'origine (sans abonnement propre).
   await k.getByText('Activez votre abonnement').waitFor({ timeout: 10000 });

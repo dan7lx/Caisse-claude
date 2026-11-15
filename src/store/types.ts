@@ -208,6 +208,12 @@ export interface LobbyLink {
   lobbyId: string;
   code: string;
   server: ServerConfig;
+  /**
+   * true = cet appareil a créé le lobby (le gérant, dont l'abonnement couvre l'équipe).
+   * false ou absent = employé qui a rejoint : il travaille sous l'abonnement du restaurant
+   * tant qu'il est dans le lobby, sans accès à l'abonnement, et le perd en quittant le lobby.
+   */
+  host?: boolean;
 }
 
 /** Réglages propres à cet appareil (jamais partagés). */
@@ -224,6 +230,8 @@ export interface DeviceState {
   /** Essais de code gérant ratés d'affilée, et blocage temporaire qui en découle. */
   pinFailures: number;
   pinLockedUntil: number | null;
+  /** Dernier lobby rejoint en tant qu'employé (pour le rejoindre à nouveau en un geste). */
+  lastLobby?: LobbyLink | null;
   /** Commande de paiement en cours de ce client (identifiant + jeton secret de suivi). */
   pendingPayment: PendingPayment | null;
 }

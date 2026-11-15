@@ -1,18 +1,20 @@
-import { Stack } from 'expo-router';
+import { Redirect, Stack } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { formatLongDate, LiveClock, PaymentCalendar } from '../components/PaymentCalendar';
 import { SubscriptionPanel } from '../components/SubscriptionPanel';
 import { Card, Notice, SectionTitle } from '../components/ui';
 import { formatCountdown, licenseStatus } from '../license/license';
-import { useNow, useStore } from '../store/StoreProvider';
+import { isLobbyMember, useNow, useStore } from '../store/StoreProvider';
 import { colors, fonts, screenBg } from '../theme';
 
 export default function SubscriptionScreen() {
-  const { state } = useStore();
+  const { state, device } = useStore();
   const demo = licenseStatus(state.license).demo;
   const now = useNow(demo ? 1000 : 30000);
   const status = licenseStatus(state.license, now);
+  // Employé dans le lobby : l'abonnement est géré par le gérant, pas d'accès à cette page.
+  if (isLobbyMember(device)) return <Redirect href="/" />;
 
   const title =
     status.plan === 'vie'

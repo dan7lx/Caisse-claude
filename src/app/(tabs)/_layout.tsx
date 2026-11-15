@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusStrip } from '../../components/ReminderBanner';
 import { kitchenTickets, openOrders } from '../../store/selectors';
 import { useStore } from '../../store/StoreProvider';
-import { colors, frosted } from '../../theme';
+import { colors, frosted, safeInset } from '../../theme';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -60,7 +60,13 @@ export default function TabsLayout() {
         screenOptions={{
           headerShown: false,
           sceneStyle: { backgroundColor: colors.bg },
-          tabBarStyle: { backgroundColor: 'rgba(11, 13, 21, 0.86)', borderTopColor: colors.border, height: 60 + insets.bottom, ...frosted },
+          tabBarStyle: {
+            backgroundColor: 'rgba(11, 13, 21, 0.86)',
+            borderTopColor: colors.border,
+            height: safeInset('bottom', insets.bottom, 60),
+            paddingBottom: safeInset('bottom', insets.bottom),
+            ...frosted,
+          },
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.onDarkMuted,
           tabBarLabelStyle: { fontWeight: '700', fontSize: narrow ? 10 : 11, letterSpacing: narrow ? 0 : 0.3 },
@@ -95,7 +101,7 @@ export default function TabsLayout() {
         <Tabs.Screen name="gestion" options={{ title: 'Gestion', tabBarIcon: tabIcon('settings') }} />
       </Tabs>
       {/* Fond de la barre d'état : le contenu défile dessous sans se mélanger à l'heure et à la batterie. */}
-      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: colors.ink }} />
+      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: safeInset('top', insets.top), backgroundColor: colors.ink }} />
     </View>
   );
 }

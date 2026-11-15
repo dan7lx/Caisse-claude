@@ -18,8 +18,8 @@ interface Props {
 /** Rejoindre le lobby de son restaurant avec le code donné par le gérant. */
 export function JoinTeamForm({ dark, onJoined }: Props) {
   const { device, invite, clearInvite, joinLobby } = useStore();
-  const knownServer = invite?.server ?? device.server ?? BUILT_IN_SERVER;
-  const [code, setCode] = useState(invite?.code ?? '');
+  const knownServer = invite?.server ?? device.lastLobby?.server ?? device.server ?? BUILT_IN_SERVER;
+  const [code, setCode] = useState(invite?.code ?? device.lastLobby?.code ?? '');
   const [name, setName] = useState(device.currentServer === 'Serveur 1' ? '' : device.currentServer);
   const [role, setRole] = useState<Role>(device.role);
   const [url, setUrl] = useState(knownServer?.url ?? '');

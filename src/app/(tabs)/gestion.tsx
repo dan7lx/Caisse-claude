@@ -14,7 +14,7 @@ import { identifyCode } from '../../license/access';
 import { formatCountdown, hashManagerPin, licenseStatus } from '../../license/license';
 import { resetDemo, setManagerPin, wipeAll } from '../../store/actions';
 import { openOrders, salesStats, startOfDay } from '../../store/selectors';
-import { useStore } from '../../store/StoreProvider';
+import { useStore, isLobbyMember } from '../../store/StoreProvider';
 import { colors, fonts, screenBg } from '../../theme';
 import { formatPrice } from '../../utils/format';
 import { useLayout } from '../../utils/layout';
@@ -144,7 +144,10 @@ function ManagementScreen() {
       <SectionTitle>Activité & abonnement</SectionTitle>
       <Group>
         <ListRow emoji="📊" title="Historique & statistiques" subtitle="Ventes, paiements, meilleures ventes" chevron onPress={() => router.push('/reglages/historique')} />
-        <ListRow emoji="💎" title="Abonnement" subtitle={licenseText} chevron onPress={() => router.push('/abonnement')} />
+        {/* Employé dans le lobby : l'abonnement est géré par le gérant qui a créé le lobby. */}
+        {isLobbyMember(device) ? null : (
+          <ListRow emoji="💎" title="Abonnement" subtitle={licenseText} chevron onPress={() => router.push('/abonnement')} />
+        )}
       </Group>
 
       <SectionTitle>Sécurité</SectionTitle>

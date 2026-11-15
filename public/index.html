@@ -13,7 +13,9 @@
     <!-- Application ajoutée à l'écran d'accueil iOS : plein écran, sans barre Safari -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- « black » : iOS réserve la zone de l'heure et de la batterie, la page commence juste en dessous -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="theme-color" content="#07080D" />
     <meta name="apple-mobile-web-app-title" content="Caisse" />
     <meta name="application-name" content="Caisse Resto" />
     <meta name="format-detection" content="telephone=no" />
@@ -24,7 +26,7 @@
       html,
       body {
         height: 100%;
-        background-color: #16120f;
+        background-color: #07080d;
       }
       body {
         overflow: hidden;
@@ -34,10 +36,14 @@
         -webkit-text-size-adjust: 100%;
         touch-action: manipulation;
       }
+      /* L'application occupe tout l'écran, quelle que soit la hauteur calculée par le navigateur. */
       #root {
         display: flex;
-        height: 100%;
-        flex: 1;
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
       }
     </style>
   </head>

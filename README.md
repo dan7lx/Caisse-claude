@@ -70,7 +70,7 @@ Elle fonctionne sur **iPhone, Android** et **navigateur** (à installer sur l’
 - **Bar** : uniquement les commandes envoyées au bar ;
 - la Gestion reste protégée par le code gérant.
 
-Une fois le lobby quitté, l’application redevient complète, comme à l’origine.
+Les employés qui rejoignent le lobby travaillent sous l’abonnement du restaurant, **sans accès à l’abonnement**. Quand un employé quitte le lobby, ou ferme complètement l’application, son téléphone redevient comme à l’origine : sans abonnement personnel, l’écran de paiement revient. Le bouton « Je suis employé : rejoindre mon équipe » le fait revenir en un geste (code, prénom et poste mémorisés). Seul le téléphone qui a créé le lobby garde les données et l’abonnement du restaurant.
 
 **Abonnement et paiement par virement** (validation manuelle, guide complet : [`docs/paiements.md`](docs/paiements.md)) :
 - **Mode démo** : avec le code démo, 24 h d’utilisation gratuite. Un bandeau au-dessus des onglets, toujours visible, affiche « Essai gratuit · temps restant » à la seconde près et ce qui se passe à la fin. À la fin, l’application se bloque et demande le paiement. Une seule démo par licence.
