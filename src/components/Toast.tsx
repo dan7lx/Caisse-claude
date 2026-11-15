@@ -35,7 +35,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     ]).start();
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
-      Animated.timing(opacity, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => setMessage(null));
+      // N'efface que ce message : un message arrivé pendant le fondu ne doit pas disparaître avec l'ancien.
+      Animated.timing(opacity, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => setMessage((m) => (m === message ? null : m)));
     }, 1800);
     return () => {
       if (timer.current) clearTimeout(timer.current);

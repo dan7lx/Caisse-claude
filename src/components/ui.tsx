@@ -347,7 +347,7 @@ export function FormModal({ visible, title, onClose, onSave, saveLabel = 'Enregi
               {onDelete ? (
                 <Button title="Supprimer" variant="danger" icon="trash-outline" onPress={onDelete} style={styles.flex1} />
               ) : null}
-              {onSave ? <Button title={saveLabel} icon="checkmark" onPress={onSave} style={styles.flex2} /> : null}
+              {onSave ? <Button title={saveLabel} icon="checkmark" onPress={onSave} style={onDelete ? styles.flex1 : styles.flex2} /> : null}
             </View>
           ) : null}
         </View>
