@@ -203,7 +203,8 @@ npm start               # serveur de développement Expo
 - `theme.ts` réécrit ; jetons renommés `gold*` → `accent*`, `onAccent` ajouté ; Playfair Display retirée.
 - Photos de produits (galerie / appareil photo) dans Gestion › Articles.
 - Empreinte du code créateur remplacée (nouveau code donné par le propriétaire, jamais écrit en clair).
-- Vérifications : `npm run verify` (44 tests) et `npm run e2e` (voir résultat dans le compte rendu de session).
+- Corrigé au passage : une notification arrivée pendant le fondu de la précédente était effacée avec elle (`Toast.tsx`).
+- Vérifications : `npm run verify` OK (0 erreur, 44 tests) ; `npm run e2e` tout vert sur le build final (dont l’étape « photo de produit »), aucune erreur console.
 
 ### 2026-11-14 — Mise en service du serveur Supabase
 - Guide pas à pas donné au propriétaire. Réglages du projet conseillés : Data API activée, « Automatically expose new tables » désactivé (le schéma donne ses droits lui-même), RLS automatique activé.

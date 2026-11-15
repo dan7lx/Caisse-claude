@@ -19,9 +19,9 @@ Elle fonctionne sur **iPhone, Android** et **navigateur** (à installer sur l’
 |---|---|---|---|
 | ![Postes](docs/captures/equipe-postes.png) | ![Poste cuisine](docs/captures/poste-cuisine.png) | ![Espace créateur](docs/captures/createur-tableau.png) | ![Clé](docs/captures/createur-cle.png) |
 
-| Rappel : 5 jours en orange, fin en rouge |
-|---|
-| ![Calendrier](docs/captures/calendrier.png) |
+| Rappel : 5 jours en orange, fin en rouge | Photo de produit |
+|---|---|
+| ![Calendrier](docs/captures/calendrier.png) | ![Photo](docs/captures/photo-produit.png) |
 
 ## Fonctionnalités
 
