@@ -9,16 +9,34 @@ import { SettingsPanel } from '../components/creator/SettingsPanel';
 import { Emoji3D } from '../components/Emoji3D';
 import { planLabel, STATUS_TEXT } from '../components/PaymentFlow';
 import { useToast } from '../components/Toast';
-import { Button, Empty, notify, Segmented } from '../components/ui';
+import { Button, Chip, Empty, notify, Segmented } from '../components/ui';
 import { LICENSE_SERVER } from '../config';
-import { confirmedPayments, dashboardStats, licenseHealth, orderTodo, ordersToProcess } from '../license/dashboard';
-import { adminApi, type Dashboard, type PaymentOrder, type ServerLicense } from '../license/server';
+import { type ClientFilter, confirmedPayments, dashboardStats, filterClients, licenseHealth, orderTodo, ordersToProcess } from '../license/dashboard';
+import { adminApi, type Dashboard, type LicenseAction, type PaymentOrder, type ServerLicense } from '../license/server';
 import { colors, fonts, screenBg } from '../theme';
 import { formatPrice } from '../utils/format';
 import { haptic } from '../utils/haptics';
 
 type Tab = 'traiter' | 'clients' | 'paiements' | 'reglages';
 const REFRESH_MS = 60_000;
+const FILTERS: { value: ClientFilter; label: string }[] = [
+  { value: 'tous', label: 'Tous' },
+  { value: 'actifs', label: 'Actifs' },
+  { value: 'bientot', label: 'Fin < 5 j' },
+  { value: 'sans_acces', label: 'Sans accès' },
+  { value: 'retires', label: 'Retirés' },
+];
+const ACTION_DONE: Record<LicenseAction, (days?: number) => string> = {
+  revoke: () => 'Accès coupé',
+  restore: () => 'Accès rendu',
+  ban: () => 'Client bloqué',
+  unban: () => 'Client débloqué',
+  extend: (d) => `${d ?? 0} jours ajoutés`,
+  lifetime: () => 'Licence passée à vie',
+  expire: () => 'Abonnement terminé',
+  delete: () => 'Client retiré du tableau de bord',
+  undelete: () => 'Client remis dans le tableau de bord',
+};
 const TODO_LABEL = { verifier: 'Preuve reçue · à vérifier', generer: 'Clé à générer', envoyer: 'Clé à envoyer / en attente', attente: 'En attente du virement' } as const;
 
 /**
@@ -99,6 +117,8 @@ function CreatorDashboard({ password, onLogout }: { password: string; onLogout: 
   const [loading, setLoading] = useState(false);
   const [openOrder, setOpenOrder] = useState<PaymentOrder | null>(null);
   const [openLicense, setOpenLicense] = useState<ServerLicense | null>(null);
+  const [filter, setFilter] = useState<ClientFilter>('tous');
+  const [query, setQuery] = useState('');
 
   const load = useCallback(async () => {
     if (!server) return;
@@ -145,6 +165,7 @@ function CreatorDashboard({ password, onLogout }: { password: string; onLogout: 
   const liveOrder = openOrder ? (data.orders.find((o) => o.id === openOrder.id) ?? openOrder) : null;
   const liveLicense = openLicense ? (data.licenses.find((l) => l.license_id === openLicense.license_id) ?? openLicense) : null;
   const todo = ordersToProcess(data.orders);
+  const clients = filterClients(data.licenses, filter, query, data.now);
   const payments = confirmedPayments(data.orders);
 
   return (
@@ -191,10 +212,33 @@ function CreatorDashboard({ password, onLogout }: { password: string; onLogout: 
         ) : null}
 
         {tab === 'clients' ? (
-          data.licenses.length === 0 ? (
-            <Empty icon="people-outline" emoji="🙋" title="Aucun client" subtitle="Un client apparaît dès la confirmation de son premier paiement." />
+          <>
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Rechercher : nom, commerce, e-mail, licence…"
+              placeholderTextColor={colors.muted}
+              accessibilityLabel="Rechercher un client"
+              style={styles.search}
+            />
+            <View style={styles.filters}>
+              {FILTERS.map((f) => {
+                const n = filterClients(data.licenses, f.value, '', data.now).length;
+                return <Chip key={f.value} label={`${f.label} (${n})`} selected={filter === f.value} onPress={() => setFilter(f.value)} />;
+              })}
+            </View>
+          </>
+        ) : null}
+        {tab === 'clients' ? (
+          clients.length === 0 ? (
+            <Empty
+              icon="people-outline"
+              emoji="🙋"
+              title={data.licenses.length ? 'Aucun client dans cette liste' : 'Aucun client'}
+              subtitle={data.licenses.length ? 'Changez de filtre ou de recherche.' : 'Un client apparaît dès la confirmation de son premier paiement.'}
+            />
           ) : (
-            data.licenses.map((l) => {
+            clients.map((l) => {
               const h = HEALTH[licenseHealth(l, data.now)];
               return (
                 <Pressable key={l.license_id} accessibilityRole="button" onPress={() => setOpenLicense(l)} style={({ pressed }) => [styles.item, pressed && styles.pressed]}>
@@ -205,6 +249,7 @@ function CreatorDashboard({ password, onLogout }: { password: string; onLogout: 
                       {l.restaurant_name ? `${l.restaurant_name} · ` : ''}
                       {healthLine(l, data.now)}
                     </Text>
+                    {l.lobby ? <Text style={styles.itemNote}>👥 Équipe connectée · lobby {l.lobby.code}</Text> : null}
                   </View>
                   <Text style={[styles.chip, { color: h.color, backgroundColor: h.soft }]}>{h.label}</Text>
                 </Pressable>
@@ -268,8 +313,17 @@ function CreatorDashboard({ password, onLogout }: { password: string; onLogout: 
           setOpenLicense(null);
           setOpenOrder(o);
         }}
-        onAction={async (l, action) => {
-          await act(() => adminApi.licenseAction(server, password, l.license_id, action), action === 'revoke' ? 'Licence révoquée' : 'Accès rétabli');
+        onAction={async (l, action, days) => {
+          const r = await act(() => adminApi.licenseAction(server, password, l.license_id, action, days), ACTION_DONE[action](days));
+          // Un client retiré quitte la liste : on referme sa fiche.
+          if (r && action === 'delete') setOpenLicense(null);
+          return r !== null;
+        }}
+        onSaveInfo={async (l, info) => (await act(() => adminApi.updateClient(server, password, l.license_id, info), 'Fiche enregistrée')) !== null}
+        onCloseLobby={async (l) => (await act(() => adminApi.closeClientLobby(server, password, l.license_id), 'Équipe déconnectée')) !== null}
+        onGrantKey={async (l, plan) => {
+          const r = await act(() => adminApi.grantKey(server, password, l.license_id, plan), 'Clé offerte créée');
+          return r ? r.key : null;
         }}
       />
     </>
@@ -353,6 +407,17 @@ const styles = StyleSheet.create({
   itemNote: { fontSize: 12, fontWeight: '700', marginTop: 3 },
   dot: { width: 10, height: 10, borderRadius: 5 },
   chip: { fontSize: 11, fontWeight: '800', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, overflow: 'hidden' },
+  search: {
+    backgroundColor: colors.field,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: colors.text,
+    fontSize: 15,
+  },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   total: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.accentSoft, borderRadius: 14, padding: 14 },
   totalLabel: { fontWeight: '800', color: colors.text },
   totalValue: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 24, color: colors.accentText },

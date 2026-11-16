@@ -3,6 +3,7 @@ import { Stack, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { AlertSettings } from '../components/AlertSettings';
 import { Emoji3D } from '../components/Emoji3D';
 import { JoinTeamForm } from '../components/JoinTeamForm';
 import { usePinLock } from '../components/ManagerGate';
@@ -152,6 +153,7 @@ export default function TeamScreen() {
           Dans le lobby : Salle = tables et commandes · Cuisine = uniquement les plats envoyés en cuisine · Bar = uniquement
           les boissons envoyées au bar. En quittant le lobby, l’application redevient complète.
         </Text>
+        <AlertSettings />
       </Card>
     </>
   );

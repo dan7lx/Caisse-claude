@@ -234,6 +234,8 @@ export interface DeviceState {
   lastLobby?: LobbyLink | null;
   /** Code du lobby que le gérant vient de fermer (message affiché à l'employé exclu). */
   kickedFrom?: string | null;
+  /** Alertes de service sur cet appareil : son (et vibration) et notifications du système. */
+  alerts?: { sound: boolean; system: boolean };
   /** Commande de paiement en cours de ce client (identifiant + jeton secret de suivi). */
   pendingPayment: PendingPayment | null;
 }

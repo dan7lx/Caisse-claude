@@ -54,6 +54,24 @@ export interface ServerLicense {
   activations: number;
   created_at: string;
   updated_at: string;
+  /** Bloqué : accès coupé, plus aucune commande ni activation possible. */
+  banned?: boolean;
+  /** Note interne du créateur. */
+  note?: string;
+  /** Retiré du tableau de bord (la licence reste coupée en base). */
+  deleted_at?: string | null;
+  /** Lobby d'équipe ouvert en ce moment, s'il y en a un. */
+  lobby?: { code: string; created_at: string } | null;
+}
+
+export type LicenseAction = 'revoke' | 'restore' | 'ban' | 'unban' | 'extend' | 'lifetime' | 'expire' | 'delete' | 'undelete';
+
+export interface ClientInfo {
+  customer_name: string;
+  restaurant_name: string;
+  email: string;
+  phone: string;
+  note: string;
 }
 
 export interface Dashboard {
@@ -145,8 +163,27 @@ export const adminApi = {
     unwrap(await rpc<{ order: PaymentOrder } | { error: string }>(cfg, 'caisse_admin_reject', { p_password: password, p_order: orderId, p_note: note })),
   generateKey: async (cfg: ServerConfig, password: string, orderId: string) =>
     unwrap(await rpc<{ key: string; order: PaymentOrder } | { error: string }>(cfg, 'caisse_admin_generate_key', { p_password: password, p_order: orderId })),
-  licenseAction: async (cfg: ServerConfig, password: string, licenseId: string, action: 'revoke' | 'restore') =>
-    unwrap(await rpc<{ ok: true } | { error: string }>(cfg, 'caisse_admin_license_action', { p_password: password, p_license: licenseId, p_action: action })),
+  licenseAction: async (cfg: ServerConfig, password: string, licenseId: string, action: LicenseAction, days?: number) =>
+    unwrap(
+      await rpc<{ ok: true } | { error: string }>(cfg, 'caisse_admin_license_action', {
+        p_password: password,
+        p_license: licenseId,
+        p_action: action,
+        p_days: days ?? null,
+      }),
+    ),
+  updateClient: async (cfg: ServerConfig, password: string, licenseId: string, info: ClientInfo) =>
+    unwrap(await rpc<{ ok: true } | { error: string }>(cfg, 'caisse_admin_update_client', { p_password: password, p_license: licenseId, p_info: info })),
+  closeClientLobby: async (cfg: ServerConfig, password: string, licenseId: string) =>
+    unwrap(await rpc<{ ok: true } | { error: string }>(cfg, 'caisse_admin_close_lobby', { p_password: password, p_license: licenseId })),
+  grantKey: async (cfg: ServerConfig, password: string, licenseId: string, plan: PayPlan) =>
+    unwrap(
+      await rpc<{ key: string; order: PaymentOrder } | { error: string }>(cfg, 'caisse_admin_grant_key', {
+        p_password: password,
+        p_license: licenseId,
+        p_plan: plan,
+      }),
+    ),
   updateBilling: async (cfg: ServerConfig, password: string, billing: BillingInfo) =>
     unwrap(await rpc<{ billing: BillingInfo } | { error: string }>(cfg, 'caisse_admin_update_billing', { p_password: password, p_billing: billing })),
   changePassword: async (cfg: ServerConfig, password: string, next: string) =>

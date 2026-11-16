@@ -28,7 +28,7 @@ http
     const args = JSON.parse(body || '{}');
     const names = Object.keys(args);
     const sql = `select public.${m[1]}(${names.map((n, i) => `${n} := $${i + 1}`).join(', ')}) as r`;
-    const values = names.map((n) => (typeof args[n] === 'object' ? JSON.stringify(args[n]) : args[n]));
+    const values = names.map((n) => (args[n] !== null && typeof args[n] === 'object' ? JSON.stringify(args[n]) : args[n]));
     let client;
     try {
       client = await pool.connect();

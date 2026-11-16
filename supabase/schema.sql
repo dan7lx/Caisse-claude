@@ -314,6 +314,11 @@ create table if not exists public.caisse_licenses (
   updated_at timestamptz not null default now()
 );
 
+-- Contrôle du créateur sur chaque client (ajouté après coup, sans effet sur les données existantes).
+alter table public.caisse_licenses add column if not exists banned boolean not null default false;
+alter table public.caisse_licenses add column if not exists deleted_at timestamptz;
+alter table public.caisse_licenses add column if not exists note text not null default '';
+
 alter table public.caisse_billing enable row level security;
 alter table public.caisse_admin enable row level security;
 alter table public.caisse_payment_orders enable row level security;
@@ -486,6 +491,9 @@ begin
   if length(p_restaurant) > 80 then raise exception 'Nom du commerce trop long'; end if;
   if p_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or length(p_email) > 120 then raise exception 'Adresse e-mail invalide'; end if;
   if length(p_phone) < 8 or length(p_phone) > 16 then raise exception 'Numéro WhatsApp invalide'; end if;
+  if exists (select 1 from caisse_licenses where license_id = p_license and banned) then
+    raise exception 'Cette licence est bloquée. Contactez le support.';
+  end if;
   -- Anti-abus : commandes ouvertes limitées par licence et au total.
   if (select count(*) from caisse_payment_orders
        where license_id = p_license and status in ('en_attente', 'preuve_envoyee')) >= 3 then
@@ -583,6 +591,7 @@ begin
   if o.key_redeemed_at is not null then raise exception 'Cette clé a déjà été utilisée'; end if;
 
   select * into l from caisse_licenses where license_id = p_license for update;
+  if found and l.banned then raise exception 'Cette licence est bloquée. Contactez le support.'; end if;
   if o.plan = 'vie' or (found and l.plan = 'vie' and not l.revoked) then
     v_plan := 'vie';
     v_until := null;
@@ -625,8 +634,8 @@ begin
   if not found then return json_build_object('found', false); end if;
   return json_build_object(
     'found', true,
-    'plan', case when l.revoked then 'aucun' else l.plan end,
-    'revoked', l.revoked,
+    'plan', case when l.revoked or l.banned then 'aucun' else l.plan end,
+    'revoked', l.revoked or l.banned,
     'valid_until', case when l.valid_until is null then null else floor(extract(epoch from l.valid_until) * 1000) end
   );
 end;
@@ -662,7 +671,11 @@ begin
                             'valid_until', case when l.valid_until is null then null else floor(extract(epoch from l.valid_until) * 1000) end,
                             'customer_name', l.customer_name, 'restaurant_name', l.restaurant_name,
                             'email', l.email, 'phone', l.phone, 'activations', l.activations,
-                            'created_at', l.created_at, 'updated_at', l.updated_at
+                            'created_at', l.created_at, 'updated_at', l.updated_at,
+                            'banned', l.banned, 'note', l.note, 'deleted_at', l.deleted_at,
+                            'lobby', (select json_build_object('code', b.code, 'created_at', b.created_at)
+                                        from caisse_lobbies b where b.license_id = l.license_id and b.closed_at is null
+                                        order by b.created_at desc limit 1)
                           ) order by l.updated_at desc) from caisse_licenses l), '[]'::json),
     'billing', caisse_billing_json(),
     'now', floor(extract(epoch from now()) * 1000)
@@ -741,7 +754,67 @@ begin
 end;
 $$;
 
-create or replace function public.caisse_admin_license_action(p_password text, p_license text, p_action text)
+-- Contrôle total d'un client. Actions : revoke / restore (couper / rendre l'accès), ban / unban (bloquer :
+-- accès coupé et plus aucune commande possible), extend (+ p_days jours), lifetime (passer à vie),
+-- expire (terminer maintenant), delete / undelete (retirer du tableau de bord / y remettre).
+-- « delete » ne fait que masquer le client : la licence reste en base, coupée, pour que ses appareils
+-- restent bloqués même s'ils étaient hors ligne au moment de la suppression.
+drop function if exists public.caisse_admin_license_action(text, text, text);
+create or replace function public.caisse_admin_license_action(p_password text, p_license text, p_action text, p_days int default null)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  l caisse_licenses%rowtype;
+begin
+  if not caisse_admin_ok(p_password) then return caisse_admin_error(); end if;
+  select * into l from caisse_licenses where license_id = p_license for update;
+  if not found then return json_build_object('error', 'Licence introuvable.'); end if;
+  if p_action = 'revoke' then
+    update caisse_licenses set revoked = true, updated_at = now() where license_id = p_license;
+  elsif p_action = 'restore' then
+    update caisse_licenses set revoked = false, updated_at = now() where license_id = p_license;
+  elsif p_action = 'ban' then
+    update caisse_licenses set banned = true, updated_at = now() where license_id = p_license;
+    update caisse_payment_orders set status = 'annulee', closed_at = now()
+     where license_id = p_license and status in ('en_attente', 'preuve_envoyee');
+    update caisse_lobbies set closed_at = now() where license_id = p_license and closed_at is null;
+  elsif p_action = 'unban' then
+    update caisse_licenses set banned = false, updated_at = now() where license_id = p_license;
+  elsif p_action = 'extend' then
+    if p_days is null or p_days < 1 or p_days > 3650 then return json_build_object('error', 'Nombre de jours invalide.'); end if;
+    if l.plan = 'vie' then return json_build_object('error', 'Cette licence est déjà à vie.'); end if;
+    update caisse_licenses
+       set plan = 'mensuel', revoked = false,
+           valid_until = greatest(now(), case when l.plan = 'mensuel' and l.valid_until is not null then l.valid_until else now() end)
+                         + make_interval(days => p_days),
+           updated_at = now()
+     where license_id = p_license;
+  elsif p_action = 'lifetime' then
+    update caisse_licenses set plan = 'vie', valid_until = null, revoked = false, updated_at = now() where license_id = p_license;
+  elsif p_action = 'expire' then
+    update caisse_licenses set plan = 'mensuel', valid_until = now(), updated_at = now() where license_id = p_license;
+  elsif p_action = 'delete' then
+    if not (l.revoked or l.banned or l.plan = 'aucun' or (l.plan = 'mensuel' and coalesce(l.valid_until, now()) <= now())) then
+      return json_build_object('error', 'Ce client a encore accès : révoquez ou bloquez-le avant de le retirer.');
+    end if;
+    update caisse_licenses set deleted_at = now(), revoked = true, updated_at = now() where license_id = p_license;
+    update caisse_payment_orders set status = 'annulee', closed_at = now()
+     where license_id = p_license and status in ('en_attente', 'preuve_envoyee');
+    update caisse_lobbies set closed_at = now() where license_id = p_license and closed_at is null;
+  elsif p_action = 'undelete' then
+    update caisse_licenses set deleted_at = null, updated_at = now() where license_id = p_license;
+  else
+    return json_build_object('error', 'Action inconnue.');
+  end if;
+  return json_build_object('ok', true);
+end;
+$$;
+
+-- Fiche du client : nom, commerce, e-mail, WhatsApp et note interne (visible du créateur seulement).
+create or replace function public.caisse_admin_update_client(p_password text, p_license text, p_info jsonb)
 returns json
 language plpgsql
 security definer
@@ -749,15 +822,62 @@ set search_path = public
 as $$
 begin
   if not caisse_admin_ok(p_password) then return caisse_admin_error(); end if;
-  if p_action = 'revoke' then
-    update caisse_licenses set revoked = true, updated_at = now() where license_id = p_license;
-  elsif p_action = 'restore' then
-    update caisse_licenses set revoked = false, updated_at = now() where license_id = p_license;
-  else
-    return json_build_object('error', 'Action inconnue.');
-  end if;
+  update caisse_licenses set
+    customer_name = left(trim(coalesce(p_info->>'customer_name', customer_name)), 80),
+    restaurant_name = left(trim(coalesce(p_info->>'restaurant_name', restaurant_name)), 80),
+    email = left(lower(trim(coalesce(p_info->>'email', email))), 120),
+    phone = left(regexp_replace(coalesce(p_info->>'phone', phone), '[^0-9+]', '', 'g'), 16),
+    note = left(coalesce(p_info->>'note', note), 1000),
+    updated_at = now()
+  where license_id = p_license;
   if not found then return json_build_object('error', 'Licence introuvable.'); end if;
   return json_build_object('ok', true);
+end;
+$$;
+
+-- Déconnecte toute l'équipe d'un client (ferme son lobby ouvert).
+create or replace function public.caisse_admin_close_lobby(p_password text, p_license text)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not caisse_admin_ok(p_password) then return caisse_admin_error(); end if;
+  update caisse_lobbies set closed_at = now() where license_id = p_license and closed_at is null;
+  return json_build_object('ok', true, 'closed', found);
+end;
+$$;
+
+-- Clé offerte (geste commercial, remplacement…) : crée une commande confirmée à 0 € et sa clé.
+create or replace function public.caisse_admin_grant_key(p_password text, p_license text, p_plan text)
+returns json
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  l caisse_licenses%rowtype;
+  v_number bigint := nextval('caisse_order_number_seq');
+  v_raw text := caisse_random_text(16);
+  v_key text;
+  o caisse_payment_orders%rowtype;
+begin
+  if not caisse_admin_ok(p_password) then return caisse_admin_error(); end if;
+  if p_plan not in ('mensuel', 'vie') then return json_build_object('error', 'Formule invalide.'); end if;
+  select * into l from caisse_licenses where license_id = p_license;
+  if not found then return json_build_object('error', 'Licence introuvable.'); end if;
+  v_key := substr(v_raw, 1, 4) || '-' || substr(v_raw, 5, 4) || '-' || substr(v_raw, 9, 4) || '-' || substr(v_raw, 13, 4);
+  insert into caisse_payment_orders
+    (number, reference, token_hash, license_id, plan, amount, customer_name, restaurant_name, email, phone,
+     status, admin_note, confirmed_at, key_hash, key_hint, key_created_at)
+  values
+    (v_number, 'CR-' || lpad(v_number::text, 4, '0') || '-OFFERT', caisse_sha256(encode(gen_random_bytes(24), 'hex')),
+     p_license, p_plan, 0, coalesce(nullif(l.customer_name, ''), p_license), l.restaurant_name,
+     coalesce(nullif(l.email, ''), 'offert@caisse.local'), l.phone,
+     'confirmee', 'Clé offerte par le créateur', now(), caisse_sha256(v_key), substr(v_raw, 13, 4), now())
+  returning * into o;
+  return json_build_object('key', v_key, 'order', caisse_order_json(o));
 end;
 $$;
 
@@ -827,7 +947,10 @@ revoke execute on function public.caisse_admin_dashboard(text) from public;
 revoke execute on function public.caisse_admin_confirm(text, uuid, text) from public;
 revoke execute on function public.caisse_admin_reject(text, uuid, text) from public;
 revoke execute on function public.caisse_admin_generate_key(text, uuid) from public;
-revoke execute on function public.caisse_admin_license_action(text, text, text) from public;
+revoke execute on function public.caisse_admin_license_action(text, text, text, int) from public;
+revoke execute on function public.caisse_admin_update_client(text, text, jsonb) from public;
+revoke execute on function public.caisse_admin_close_lobby(text, text) from public;
+revoke execute on function public.caisse_admin_grant_key(text, text, text) from public;
 revoke execute on function public.caisse_admin_update_billing(text, jsonb) from public;
 revoke execute on function public.caisse_admin_change_password(text, text) from public;
 
@@ -843,6 +966,9 @@ grant execute on function public.caisse_admin_dashboard(text) to anon, authentic
 grant execute on function public.caisse_admin_confirm(text, uuid, text) to anon, authenticated;
 grant execute on function public.caisse_admin_reject(text, uuid, text) to anon, authenticated;
 grant execute on function public.caisse_admin_generate_key(text, uuid) to anon, authenticated;
-grant execute on function public.caisse_admin_license_action(text, text, text) to anon, authenticated;
+grant execute on function public.caisse_admin_license_action(text, text, text, int) to anon, authenticated;
+grant execute on function public.caisse_admin_update_client(text, text, jsonb) to anon, authenticated;
+grant execute on function public.caisse_admin_close_lobby(text, text) to anon, authenticated;
+grant execute on function public.caisse_admin_grant_key(text, text, text) to anon, authenticated;
 grant execute on function public.caisse_admin_update_billing(text, jsonb) to anon, authenticated;
 grant execute on function public.caisse_admin_change_password(text, text) to anon, authenticated;

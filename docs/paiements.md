@@ -53,6 +53,19 @@ Ouvrez l'application, puis le lien discret **« Espace créateur »**. Il se tro
   - **Refuser** si le virement n'est jamais arrivé.
 - **Clients** : chaque licence avec sa couleur. Vert : active. **Orange** : se termine dans moins de 5 jours. **Rouge** : expirée. Or : à vie. Gris : révoquée. Une fiche montre l'historique des paiements, ouvre WhatsApp et permet de **Révoquer** ou de **Rétablir** l'accès.
 - **Paiements** : l'historique complet et le total encaissé.
+
+### Contrôle total d'un client (onglet Clients › touchez un client)
+
+- **Abonnement** : +7, +30 ou +90 jours offerts, **passer à vie**, **terminer maintenant**, ou **créer une clé offerte** (30 jours ou à vie) à lui envoyer sur WhatsApp.
+- **Accès** :
+  - **couper l'accès** : son app se bloque, mais il peut payer à nouveau pour revenir ;
+  - **bloquer** : accès coupé, ses commandes en attente sont annulées, son équipe est déconnectée, et il ne peut plus ni commander ni activer de clé tant que vous ne le débloquez pas.
+- **Équipe** : voir si son lobby est ouvert et **déconnecter toute son équipe**.
+- **Fiche** : modifier son nom, son commerce, son e-mail et son WhatsApp, et ajouter une **note interne** que vous seul voyez.
+- **Retirer du tableau de bord** : possible une fois l'accès coupé ou le client bloqué. Il disparaît de vos listes, mais vous le retrouvez dans le filtre **Retirés** pour le remettre si besoin. Sa licence reste coupée : même un téléphone resté hors ligne ne récupère pas l'accès. Ses paiements restent dans l'historique.
+- **Liste** : filtres Tous, Actifs, Fin < 5 j, Sans accès, Retirés, et recherche par nom, commerce, e-mail ou licence.
+
+Vos changements arrivent sur les téléphones du client en 10 minutes au plus, ou dès qu'il rouvre l'application.
 - **Réglages** : nom du commerce, prénom et nom, IBAN, titulaire, numéro WhatsApp, prix, mot de passe.
 
 Le tableau de bord se met à jour toutes les minutes. Tirez vers le bas pour le rafraîchir. Le cadenas en haut le verrouille.
@@ -63,7 +76,7 @@ Le tableau de bord se met à jour toutes les minutes. Tirez vers le bas pour le 
 - **Rappel** : pendant les 5 jours qui précèdent la fin, un bandeau et une fenêtre s'affichent. Dans le calendrier, ces jours sont en **orange** et le jour de fin en **rouge**.
 - **Fin** : à l'heure exacte de fin, l'application se bloque. La page de paiement revient et le client refait le même processus (nouvelle commande, nouvelle clé).
 - **À vie** : sans expiration.
-- **Révocation** : appliquée au prochain contrôle de l'application. Ce contrôle a lieu au démarrage, toutes les 30 minutes et au retour dans l'application.
+- **Révocation** : appliquée au prochain contrôle de l'application. Ce contrôle a lieu au démarrage, toutes les 10 minutes et au retour dans l'application.
 - Une clé ne sert **qu'une fois**, et seulement pour la licence du client qui a passé la commande.
 - L'essai gratuit de 24 h (code démo) est conservé.
 - Les anciens codes ne fonctionnent plus : code administrateur à vie, codes `M202612-…` et `VIE-…`. Les licences déjà actives sur des appareils restent valables jusqu'à leur fin.

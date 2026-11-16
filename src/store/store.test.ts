@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { canCreateLobby, canManage, hashStaffPin, identifyCode, identifyStaff } from '../license/access';
-import { dashboardStats, licenseHealth, ordersToProcess } from '../license/dashboard';
+import { dashboardStats, filterClients, licenseHealth, ordersToProcess } from '../license/dashboard';
 import { applyCode, formatCountdown, hashManagerPin, isAdminCode, isCreatorCode, isDemoCode, licenseStatus } from '../license/license';
 import {
   applyRedeem,
@@ -40,6 +40,7 @@ import {
 } from './actions';
 import { createInitialState, migrate, normalize } from './defaults';
 import { isLobbyMember } from './lobby';
+import { detectAlerts } from '../notify/alerts';
 import { makeInviteLink } from '../sync/backend';
 import { parseScannedLobby } from '../sync/scan';
 import { reduce, reduceAll, type Op } from './ops';
@@ -336,6 +337,13 @@ describe('abonnement', () => {
     });
     const licenses = [L('a', 'vie', null), L('b', 'mensuel', now + 20 * DAY), L('c', 'mensuel', now + 3 * DAY), L('d', 'mensuel', now - DAY), L('e', 'mensuel', now + 9 * DAY, true)];
     assert.deepEqual(licenses.map((l) => licenseHealth(l, now)), ['vie', 'active', 'bientot', 'expiree', 'revoquee']);
+    const all = [...licenses, { ...L('f', 'vie', null), banned: true }, { ...L('g', 'mensuel', now - DAY, true), deleted_at: iso(now) }];
+    assert.equal(licenseHealth(all[5], now), 'bloquee');
+    assert.deepEqual(filterClients(all, 'actifs', '', now).map((l) => l.license_id), ['a', 'b', 'c']);
+    assert.deepEqual(filterClients(all, 'sans_acces', '', now).map((l) => l.license_id), ['d', 'e', 'f']);
+    assert.deepEqual(filterClients(all, 'retires', '', now).map((l) => l.license_id), ['g']);
+    assert.equal(filterClients(all, 'tous', '', now).length, 6, 'les retirés sont masqués');
+    assert.deepEqual(filterClients(all, 'tous', 'C', now).map((l) => l.license_id), ['c']);
     const st = dashboardStats({ orders, licenses, billing: FALLBACK_BILLING, now });
     assert.equal(st.toProcess, 3);
     assert.equal(st.proofs, 1);
@@ -365,6 +373,48 @@ describe('scan du QR code d’invitation', () => {
     assert.deepEqual(parseScannedLobby(' k7m2qx '), { code: 'K7M2QX', server: null });
     assert.equal(parseScannedLobby('https://exemple.com/menu'), null);
     assert.equal(parseScannedLobby('BONJOUR123'), null);
+  });
+});
+
+describe('alertes de service', () => {
+  const t0 = new Date(2026, 10, 16, 20, 0).getTime();
+  it('cuisine : nouveau bon une seule fois, pas la boisson du bar, retard, annulation', () => {
+    const { s, burger, coca } = setup();
+    const kitchen = { role: 'cuisine' as const, me: 'Chef', now: t0 };
+    let mem = detectAlerts(null, s, kitchen).memory; // ouverture : rien ne sonne
+    const s1 = reduceAll(s, [
+      { t: 'addItem', orderId: 'o1', lineId: 'l1', item: burger, station: 'cuisine' },
+      { t: 'addItem', orderId: 'o1', lineId: 'l2', item: coca, station: 'bar' },
+      { t: 'sendOrder', orderId: 'o1', at: t0 },
+    ]);
+    let r = detectAlerts(mem, s1, kitchen);
+    assert.deepEqual(r.fresh.map((a) => a.kind), ['nouveau_bon']);
+    assert.match(r.fresh[0].body, /Table 1 · 1 article · Julie/);
+    mem = r.memory;
+    assert.equal(detectAlerts(mem, s1, kitchen).fresh.length, 0, 'pas deux fois');
+    const late = { ...kitchen, now: t0 + (s1.settings.alertMinutes + 1) * 60_000 };
+    r = detectAlerts(mem, s1, late);
+    assert.deepEqual(r.fresh.map((a) => a.kind), ['retard']);
+    const bar = detectAlerts(detectAlerts(null, s, { ...kitchen, role: 'bar' }).memory, s1, { ...kitchen, role: 'bar' });
+    assert.match(bar.fresh[0].title, /au bar/);
+    const s2 = reduce(s1, { t: 'cancelOrder', orderId: 'o1', at: t0 + 1000 });
+    assert.ok(detectAlerts(r.memory, s2, late).fresh.some((a) => a.kind === 'annulee'));
+  });
+
+  it('salle : plats prêts seulement sur les tables du serveur', () => {
+    const { s, burger } = setup();
+    const s1 = reduceAll(s, [
+      { t: 'addItem', orderId: 'o1', lineId: 'l1', item: burger, station: 'cuisine' },
+      { t: 'sendOrder', orderId: 'o1', at: t0 },
+    ]);
+    const julie = { role: 'serveur' as const, me: 'Julie', now: t0 };
+    const other = { ...julie, me: 'Marc' };
+    const memJ = detectAlerts(null, s1, julie).memory;
+    const memM = detectAlerts(null, s1, other).memory;
+    const s2 = reduce(s1, { t: 'setLinesStatus', orderId: 'o1', lineIds: ['l1'], status: 'pret', at: t0 + 60_000 });
+    const r = detectAlerts(memJ, s2, julie);
+    assert.deepEqual(r.fresh.map((a) => [a.kind, a.href]), [['pret', '/commande/o1']]);
+    assert.equal(detectAlerts(memM, s2, other).fresh.length, 0);
   });
 });
 

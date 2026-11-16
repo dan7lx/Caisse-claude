@@ -1,5 +1,6 @@
 // Caméra simulée pour les tests : une vidéo .y4m qui filme un QR code (lu par Chromium avec
 // --use-file-for-fake-video-capture). Le QR est dessiné avec qrcode-generator, déjà utilisé par l'app.
+const { Buffer } = require('buffer');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');

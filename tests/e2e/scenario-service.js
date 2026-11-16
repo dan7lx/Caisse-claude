@@ -215,7 +215,8 @@ const tab = (page, name) => page.getByText(name, { exact: true }).last();
   await a.getByRole('button', { name: /^Envoyer \(2\)/ }).last().click();
   await k.getByText('Pavé de saumon').first().waitFor({ timeout: 15000 });
   if (await k.getByText('Verre de rouge').count()) throw new Error('la cuisine voit la boisson du bar');
-  console.log('Cuisine : reçoit le plat, pas la boisson (envoyée au bar)');
+  await k.getByRole('alert', { name: /Nouvelle commande en cuisine/ }).first().waitFor({ timeout: 15000 });
+  console.log('Cuisine : alerte « Nouvelle commande », reçoit le plat, pas la boisson (envoyée au bar)');
   await shot(k, 'v4-10-cuisine-ticket');
 
   // Fermeture complète de l'application : l'employé sort du lobby, l'écran de paiement revient.

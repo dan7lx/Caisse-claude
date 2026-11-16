@@ -5,16 +5,37 @@ import type { Dashboard, PaymentOrder, ServerLicense } from './server';
 
 const DAY = 86_400_000;
 
-export type LicenseHealth = 'vie' | 'active' | 'bientot' | 'expiree' | 'revoquee' | 'aucune';
+export type LicenseHealth = 'vie' | 'active' | 'bientot' | 'expiree' | 'revoquee' | 'bloquee' | 'aucune';
 
 /** État d'une licence pour l'affichage : à vie, active, se termine sous 5 jours, expirée, révoquée. */
 export function licenseHealth(l: ServerLicense, now: number): LicenseHealth {
+  if (l.banned) return 'bloquee';
   if (l.revoked) return 'revoquee';
   if (l.plan === 'vie') return 'vie';
   if (l.plan !== 'mensuel' || l.valid_until === null) return 'aucune';
   if (l.valid_until <= now) return 'expiree';
   if (l.valid_until - now <= REMINDER_DAYS * DAY) return 'bientot';
   return 'active';
+}
+
+/** Le client a encore accès à l'application (on ne peut pas le retirer du tableau de bord). */
+export const hasAccess = (l: ServerLicense, now: number) => ['vie', 'active', 'bientot'].includes(licenseHealth(l, now));
+
+export type ClientFilter = 'tous' | 'actifs' | 'bientot' | 'sans_acces' | 'retires';
+
+/** Filtre et recherche dans la liste des clients (les clients retirés n'apparaissent que dans « Retirés »). */
+export function filterClients(list: ServerLicense[], filter: ClientFilter, query: string, now: number): ServerLicense[] {
+  const q = query.trim().toLowerCase();
+  return list.filter((l) => {
+    if (filter === 'retires' ? !l.deleted_at : l.deleted_at) return false;
+    const h = licenseHealth(l, now);
+    if (filter === 'actifs' && !hasAccess(l, now)) return false;
+    if (filter === 'bientot' && h !== 'bientot') return false;
+    if (filter === 'sans_acces' && hasAccess(l, now)) return false;
+    if (!q) return true;
+    return [l.customer_name, l.restaurant_name, l.email, l.phone, l.license_id, l.note ?? '']
+      .some((v) => v.toLowerCase().includes(q));
+  });
 }
 
 export const daysLeft = (l: ServerLicense, now: number) =>
@@ -67,9 +88,9 @@ export function dashboardStats(d: Dashboard): DashboardStats {
   return {
     toProcess: ordersToProcess(d.orders).length,
     proofs: d.orders.filter((o) => o.status === 'preuve_envoyee').length,
-    activeLicenses: health.filter((h) => h === 'vie' || h === 'active' || h === 'bientot').length,
-    endingSoon: health.filter((h) => h === 'bientot').length,
-    expired: health.filter((h) => h === 'expiree').length,
+    activeLicenses: health.filter((h, i) => !d.licenses[i].deleted_at && (h === 'vie' || h === 'active' || h === 'bientot')).length,
+    endingSoon: health.filter((h, i) => !d.licenses[i].deleted_at && h === 'bientot').length,
+    expired: health.filter((h, i) => !d.licenses[i].deleted_at && h === 'expiree').length,
     revenueThisMonth: paid.filter((o) => Date.parse(o.confirmed_at ?? o.created_at) >= monthStart).reduce((s, o) => s + o.amount, 0),
     revenueTotal: paid.reduce((s, o) => s + o.amount, 0),
   };

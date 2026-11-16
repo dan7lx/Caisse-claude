@@ -132,6 +132,57 @@ const randomLicense = () => {
   assert.ok(!('token_hash' in mine[0]) && !('key_hash' in mine[0]), 'aucune empreinte exposée');
   console.log('Tableau de bord : historique complet, aucune empreinte exposée');
 
+  // Contrôle total du créateur sur un client
+  const lc = randomLicense();
+  const mk = async (plan) => {
+    const c = await rpc('caisse_create_payment_order', { ...client, p_license: lc, p_plan: plan });
+    await rpc('caisse_admin_confirm', { p_password: PASSWORD, p_order: c.order.id, p_note: '' });
+    return (await rpc('caisse_admin_generate_key', { p_password: PASSWORD, p_order: c.order.id })).key;
+  };
+  const act = (action, days) => rpc('caisse_admin_license_action', { p_password: PASSWORD, p_license: lc, p_action: action, p_days: days ?? null });
+  const r0 = await rpc('caisse_redeem_key', { p_license: lc, p_key: await mk('mensuel') });
+  await act('extend', 7);
+  let c0 = await rpc('caisse_license_check', { p_license: lc });
+  assert.ok(Math.abs(c0.valid_until - (r0.valid_until + 7 * DAY)) < 60000, '+7 jours');
+  await act('expire');
+  c0 = await rpc('caisse_license_check', { p_license: lc });
+  assert.ok(c0.valid_until <= Date.now() + 5000, 'terminé maintenant');
+  await act('lifetime');
+  assert.equal((await rpc('caisse_license_check', { p_license: lc })).plan, 'vie');
+  assert.match((await act('extend', 30)).error, /déjà à vie/);
+  assert.match((await act('delete')).error, /révoquez ou bloquez/, 'pas de suppression d’un client actif');
+  await rpc('caisse_admin_update_client', { p_password: PASSWORD, p_license: lc, p_info: { note: 'Client fidèle', restaurant_name: 'Chez Marie bis' } });
+  const gift = await rpc('caisse_admin_grant_key', { p_password: PASSWORD, p_license: lc, p_plan: 'mensuel' });
+  assert.match(gift.key, /^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/);
+  assert.equal(gift.order.amount, 0);
+  // Bloquer : accès coupé, plus de commande ni d'activation, lobby fermé
+  const lob = await rpc('caisse_create_lobby', { p_snapshot: { license: { id: lc }, settings: {} } });
+  await act('ban');
+  assert.equal((await rpc('caisse_license_check', { p_license: lc })).plan, 'aucun');
+  await fails('caisse_create_payment_order', { ...client, p_license: lc, p_plan: 'mensuel' }, /bloquée/);
+  await fails('caisse_redeem_key', { p_license: lc, p_key: gift.key }, /bloquée/);
+  assert.equal((await rpc('caisse_pull', { p_lobby: lob.lobby_id, p_after: 0 })).closed, true, 'équipe déconnectée');
+  // Retirer du tableau de bord : masqué, mais toujours coupé
+  await act('delete');
+  let d3 = await rpc('caisse_admin_dashboard', { p_password: PASSWORD });
+  const gone = d3.licenses.find((l) => l.license_id === lc);
+  assert.ok(gone.deleted_at && gone.banned && gone.note === 'Client fidèle' && gone.restaurant_name === 'Chez Marie bis');
+  assert.equal((await rpc('caisse_license_check', { p_license: lc })).plan, 'aucun', 'reste coupé après suppression');
+  await act('undelete');
+  await act('unban');
+  await act('restore');
+  d3 = await rpc('caisse_admin_dashboard', { p_password: PASSWORD });
+  assert.equal(d3.licenses.find((l) => l.license_id === lc).deleted_at, null);
+  assert.equal((await rpc('caisse_license_check', { p_license: lc })).plan, 'vie');
+  // Fermer le lobby d'un client à distance
+  const lob2 = await rpc('caisse_create_lobby', { p_snapshot: { license: { id: lc }, settings: {} } });
+  assert.equal(d3.licenses.find((l) => l.license_id === lc).lobby, null);
+  const d4 = await rpc('caisse_admin_dashboard', { p_password: PASSWORD });
+  assert.equal(d4.licenses.find((l) => l.license_id === lc).lobby.code, lob2.code);
+  await rpc('caisse_admin_close_lobby', { p_password: PASSWORD, p_license: lc });
+  assert.equal((await rpc('caisse_pull', { p_lobby: lob2.lobby_id, p_after: 0 })).closed, true);
+  console.log('Contrôle total : +jours, fin, à vie, fiche, clé offerte, blocage, suppression masquée, lobby fermé à distance');
+
   // Lobbies : un par restaurant, sans lien entre restaurants
   const snap = (licenseId, name) => ({ license: { id: licenseId }, settings: { restaurantName: name } });
   const licA = randomLicense();

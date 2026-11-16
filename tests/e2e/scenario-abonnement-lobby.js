@@ -1,6 +1,7 @@
 // Scénario « abonnement + lobby » : mode démo, paiement par virement, code gérant, lobby créer/rejoindre, cuisson, cuisine.
 const { chromium, devices } = require('playwright');
 const CODES = require('./codes');
+const { Buffer } = require('buffer');
 const { qrVideo } = require('./fake-camera');
 
 const APP = 'http://localhost:8766';
@@ -172,7 +173,8 @@ async function pin(page, code, submit) {
   await shot(k, 'v3-12-cuisine');
   await k.getByRole('button', { name: 'Prêt' }).first().click();
   await m.getByRole('button', { name: /^Table 1, Prêt à servir/ }).waitFor({ timeout: 15000 });
-  console.log('Salle : table 1 prête à servir');
+  await m.getByRole('alert', { name: /Prêt à servir/ }).first().waitFor({ timeout: 15000 });
+  console.log('Salle : alerte « Prêt à servir », table 1 prête à servir');
   await shot(m, 'v3-13-salle');
 
   // Un employé rejoint en scannant le QR code d'invitation avec la caméra (caméra simulée).

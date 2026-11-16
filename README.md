@@ -93,6 +93,9 @@ Les employés qui rejoignent le lobby travaillent sous l’abonnement du restaur
 - suivre les **clients et licences** (actives, se terminant sous 5 jours, expirées, révoquées) et **révoquer** ou **rétablir** l’accès ;
 - consulter l’**historique des paiements** ;
 - modifier les réglages et le mot de passe.
+- **contrôler chaque client** : jours offerts, passer à vie, terminer, clé offerte, couper l’accès, bloquer, déconnecter son équipe, fiche et note interne, retirer du tableau de bord (voir `docs/paiements.md`).
+
+**Alertes de service** (dans le lobby) : la cuisine et le bar sont prévenus de chaque nouvelle commande, d’un retard ou d’une annulation ; le serveur est prévenu quand les plats de ses tables sont prêts. Bannière en haut de l’écran, son et vibration, et notification du téléphone si elle est activée (Équipe › Cet appareil › Alertes de service). Les alertes arrivent tant que l’application est ouverte : sur iPhone, une application web mise en veille ne reçoit plus rien.
 
 **Administration** (code administrateur, sur l’appareil du restaurant) : droits du gérant (accès à la Gestion, création du lobby), réinitialisation du code gérant, fermeture du lobby. Elle ne peut plus activer de licence.
 

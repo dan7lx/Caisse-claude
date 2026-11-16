@@ -46,10 +46,10 @@ export function useRedeemKey() {
   );
 }
 
-const CHECK_EVERY_MS = 30 * 60 * 1000;
+const CHECK_EVERY_MS = 10 * 60 * 1000;
 
 /**
- * Contrôle régulier de la licence auprès du serveur (au démarrage, toutes les 30 min et au retour dans
+ * Contrôle régulier de la licence auprès du serveur (au démarrage, toutes les 10 min et au retour dans
  * l'application) : révocation, renouvellement ou passage à vie décidés par le créateur s'appliquent.
  * Hors ligne, la licence enregistrée sur l'appareil continue de s'appliquer.
  */

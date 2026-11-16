@@ -55,9 +55,10 @@ src/
     defaults.ts             Données de démo, `normalize` (migration des anciennes données)
     StoreProvider.tsx       État, sauvegarde, boucle de synchro, session gérant, clôture de minuit, useNow
     lobby.ts                `isLobbyMember` : employé (a rejoint) ou gérant (a créé le lobby)
-    store.test.ts           Tests unitaires (46)
+    store.test.ts           Tests unitaires (48)
   sync/backend.ts           Appels RPC Supabase, liens d’invitation
   sync/scan.ts              Lecture d’un QR code scanné (lien d’invitation ou code)
+  notify/                   alerts.ts (détection, pure), sound.ts (bips, vibration), system.ts (notifications via service worker)
   license/license.ts        Statut d’abonnement, démo, rappel, codes démo/admin/créateur, reconnaissance des clés
   license/server.ts         Client du serveur de paiements et licences (RPC), règles locales (clé, sync, liens WhatsApp)
   license/dashboard.ts      Calculs de l’Espace créateur (à traiter, santé des licences, chiffres)
@@ -94,12 +95,13 @@ docs/captures/              Captures d’écran du README
    - un ancien lien sans `host` est traité comme un employé ;
    - **fermeture par le gérant** : dès que `caisse_pull` répond `closed` (ou que `caisse_push` refuse « Lobby fermé »), chaque appareil quitte le lobby (`leaveLobby({ closed: true })`) ; l’employé voit « Lobby XXX fermé » sur l’écran d’abonnement (`device.kickedFrom`).
 7. **Un lobby par restaurant** : `caisse_lobbies.license_id` (licence du créateur, lue dans l’instantané). Créer un lobby ferme l’ancien lobby **de la même licence** (ses employés sont exclus) sans toucher aux autres restaurants. Codes tirés par `caisse_random_text` (pgcrypto). Tous les clients partagent le même serveur Supabase, mais chaque lobby est une session séparée (identifiant secret, journal d’opérations à part).
+9. **Alertes de service** (`notify/alerts.ts`, pur et testé ; `AlertCenter.tsx` monté à la racine) : seulement en lobby. Cuisine/bar : nouveau bon de leur poste, retard (au-delà de `alertMinutes`), annulation d’une commande déjà envoyée. Serveur : plats prêts sur **ses** tables (`order.server === device.currentServer`). Au premier calcul tout est « déjà vu » (pas d’alarme à l’ouverture). Son Web Audio (débloqué au premier toucher), vibration, notification du système via `public/sw.js` si autorisée et l’app en arrière-plan. Réglages par appareil : `device.alerts` (Équipe › Cet appareil). **Pas de vraies notifications push** quand l’app est fermée (il faudrait Web Push : clés VAPID + fonction serveur).
 8. **Rejoindre** : code à 6 caractères, ou scan du QR code d’invitation dans l’app (`QrScanner.tsx` : caméra + jsQR, web uniquement ; `sync/scan.ts` lit le lien ou le code).
 
 ### Règles métier importantes
 
 - Montants en **centimes** (entiers). Prix de la carte **hors TVA**. La TVA (0/6/12/21 %, `VAT_RATES`) est **choisie à l’encaissement** (obligatoire) et **ajoutée** : `orderTotal = orderNet + orderVat`. Les anciennes commandes sans `vatRate` gardent l’ancien calcul (TVA incluse au `settings.taxRate`, qui n’est plus modifiable).
-- Licence mensuelle : chaque clé donne **30 jours** dès son activation (`MONTHLY_DAYS`), cumulables (calcul sur le serveur, `caisse_redeem_key`). `paidUntil` = fin de validité. Rappel 5 jours avant (`REMINDER_DAYS`), blocage à l’heure exacte de fin, puis la page de paiement revient. Revérification locale toutes les 15 s ; contrôle serveur (`caisse_license_check`) au démarrage, toutes les 30 min et au retour dans l’application.
+- Licence mensuelle : chaque clé donne **30 jours** dès son activation (`MONTHLY_DAYS`), cumulables (calcul sur le serveur, `caisse_redeem_key`). `paidUntil` = fin de validité. Rappel 5 jours avant (`REMINDER_DAYS`), blocage à l’heure exacte de fin, puis la page de paiement revient. Revérification locale toutes les 15 s ; contrôle serveur (`caisse_license_check`) au démarrage, toutes les 10 min et au retour dans l’application.
 - Activation : **uniquement** par une clé `XXXX-XXXX-XXXX-XXXX` générée par le créateur sur le serveur, liée à la licence de la commande, à usage unique. Le code démo reste local. Le code admin n’active plus de licence (il ouvre seulement l’administration locale).
 - Code créateur (empreinte `CREATOR_CODE_HASH`) : exigé pour « Partir de zéro », « Recharger la démo » et « Effacer l’historique des tickets ».
 - Démo : 24 h (`DEMO_HOURS`), une seule fois par licence.
@@ -125,7 +127,9 @@ docs/captures/              Captures d’écran du README
 - Lobby : créer / rejoindre (code 6 caractères, QR code, lien d’invitation), synchro 2 s, file hors-ligne, accès filtré par poste, retour à la normale en quittant.
 - Abonnement : mode démo 24 h ; mensuel 30 jours cumulables, rappel 5 jours (calendrier orange), fin en rouge, blocage puis nouveau paiement ; à vie.
 - Paiement par virement : formulaire client, page pro (commerce, prénom et nom, montant exact, IBAN, titulaire, référence unique `CR-NNNN-XXXX`, « virement instantané »), bouton « Envoyer ma preuve de paiement sur WhatsApp » prérempli, suivi de commande, saisie de la clé.
-- Espace créateur (`/createur`, mot de passe serveur) : à traiter, confirmation, refus, génération et envoi WhatsApp de la clé, clients et licences (couleurs, révocation), historique des paiements, réglages modifiables (commerce, prénom et nom, IBAN, titulaire, WhatsApp, prix, mot de passe).
+- Espace créateur (`/createur`, mot de passe serveur) : à traiter, confirmation, refus, génération et envoi WhatsApp de la clé, historique des paiements, réglages modifiables (commerce, prénom et nom, IBAN, titulaire, WhatsApp, prix, mot de passe).
+- Contrôle total des clients (fiche de contrôle) : +7/+30/+90 jours, passer à vie, terminer maintenant, clé offerte (30 j / à vie), couper/rendre l’accès, bloquer/débloquer (plus aucune commande ni activation, équipe déconnectée), déconnecter son équipe (fermer son lobby), fiche modifiable + note interne, retirer du tableau de bord (masqué, licence gardée coupée) / remettre ; filtres (Tous, Actifs, Fin < 5 j, Sans accès, Retirés) et recherche. Effet sur les appareils en ≤ 10 min (`CHECK_EVERY_MS`) ou à la réouverture.
+- Alertes de service en lobby : nouveau bon, retard, annulation (cuisine/bar), prêt à servir (serveur) ; bannière, son, vibration, notification du téléphone.
 - Administration locale (code admin) : droits du gérant, réinitialisation du code gérant, fermeture du lobby.
 - Code créateur pour toute suppression de données.
 - Design « verre sombre » (2026-11-15) : fond noir bleuté avec halos, panneaux translucides, accent bleu glacier, Space Grotesk, couleurs d’état vives.
@@ -207,6 +211,13 @@ npm start               # serveur de développement Expo
 
 > Une entrée par session, la plus récente en haut. Pour voir ce qui a changé depuis la dernière mise à jour de ce fichier :
 > `git log --oneline "$(git log -1 --format=%h -- docs/claude.md)"..HEAD`
+
+### 2026-11-16 — Alertes de service, contrôle total des clients
+- Alertes : voir § 3 point 9. Tests unitaires de la détection ; e2e : bannière « Nouvelle commande en cuisine » et « Prêt à servir ».
+- Espace créateur : fiche de contrôle complète (voir § 4). Serveur : colonnes `banned`, `deleted_at`, `note` ; `caisse_admin_license_action` à 4 paramètres (l’ancienne version à 3 est supprimée par le script), `caisse_admin_update_client`, `caisse_admin_close_lobby`, `caisse_admin_grant_key` ; licence bloquée refusée à la commande et à l’activation. **Le propriétaire doit relancer `supabase/schema.sql`.**
+- « Supprimer un client » = le masquer (`deleted_at`) en gardant sa licence coupée : une vraie suppression laisserait un appareil hors ligne garder son accès.
+- Contrôle serveur de la licence ramené de 30 à 10 min.
+- Corrigé : erreurs lint (`Buffer`) dans les scripts e2e du 2026-11-15 ; le faux serveur REST transmettait `null` en texte.
 
 ### 2026-11-15 (suite 2) — Scan du QR code, fermeture du lobby, un lobby par restaurant
 - Rejoindre : bouton « Scanner le QR code du gérant » (caméra arrière, jsQR 1.4.0, Apache-2.0) en plus du code.

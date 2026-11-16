@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 
+import { AlertCenter } from '../components/AlertCenter';
 import { LicenseGate } from '../components/LicenseGate';
 import { ToastProvider } from '../components/Toast';
 import { StoreProvider } from '../store/StoreProvider';
@@ -32,6 +33,7 @@ export default function RootLayout() {
           >
             <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'fade' }} />
           </Stack>
+          <AlertCenter />
         </LicenseGate>
       </ToastProvider>
     </StoreProvider>

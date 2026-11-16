@@ -129,6 +129,34 @@ function attach(page, name, errors) {
   console.log('Fin des 30 jours : application bloquée, page de paiement de retour, ancienne clé refusée');
   await shot(p, 'p-06-fin-abonnement');
 
+  // ---------- 6. Contrôle total depuis l'Espace créateur ----------
+  await c.reload();
+  await c.getByLabel('Mot de passe de l’Espace créateur').fill(CODES.dashboard);
+  await c.getByRole('button', { name: 'Se connecter' }).click();
+  await c.getByRole('tab', { name: 'Clients' }).click();
+  await c.getByLabel('Rechercher un client').fill('Chez Marie');
+  await c.getByText('Marie Dupont').first().click();
+  await c.getByText('FICHE CLIENT').waitFor();
+  await shot(c, 'p-07-fiche-controle');
+  await c.getByRole('button', { name: '+7 jours' }).click();
+  await c.getByText('7 jours ajoutés').waitFor({ timeout: 10000 });
+  await p.reload();
+  await p.getByRole('button', { name: /^Table 1,/ }).waitFor({ timeout: 20000 });
+  console.log('Créateur : +7 jours offerts à distance, le client expiré est débloqué');
+  await c.getByRole('button', { name: 'Bloquer ce client' }).click();
+  await c.getByText('Client bloqué').waitFor({ timeout: 10000 });
+  await p.reload();
+  await p.getByText('Activez votre abonnement').waitFor({ timeout: 20000 });
+  console.log('Créateur : client bloqué, son application se bloque');
+  await c.getByRole('button', { name: 'Retirer ce client du tableau de bord' }).click();
+  await c.getByText('Client retiré du tableau de bord').waitFor({ timeout: 10000 });
+  await c.getByLabel('Rechercher un client').fill('');
+  if (await c.getByText('Marie Dupont').count()) throw new Error('le client retiré est encore dans la liste');
+  await c.getByRole('button', { name: /^Retirés/ }).click();
+  await c.getByText('Marie Dupont').first().waitFor();
+  console.log('Créateur : client retiré du tableau de bord (retrouvable dans « Retirés »)');
+  await shot(c, 'p-08-retires');
+
   console.log('erreurs :', JSON.stringify(errors));
   await browser.close();
 })().catch(async (e) => {
