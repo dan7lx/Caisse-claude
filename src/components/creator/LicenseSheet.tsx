@@ -134,7 +134,7 @@ function ClientPanel({ license, orders, now, onClose, onOpenOrder, onAction, onS
           <Row label="Total payé" value={formatPrice(paid)} />
           {license.note ? <Text style={styles.note}>📝 {license.note}</Text> : null}
           <View style={styles.row}>
-            <Button title="Modifier la fiche" icon="create-outline" small variant="secondary" onPress={() => setEditing(true)} style={styles.flex} />
+            <Button title="Modifier" icon="create-outline" small variant="secondary" onPress={() => setEditing(true)} style={styles.flex} />
             {license.phone ? (
               <Button title="WhatsApp" icon="logo-whatsapp" small variant="secondary" onPress={() => openWhatsApp(license.phone)} style={styles.flex} />
             ) : null}

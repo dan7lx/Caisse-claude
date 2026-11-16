@@ -137,6 +137,7 @@ function attach(page, name, errors) {
   await c.getByLabel('Rechercher un client').fill('Chez Marie');
   await c.getByText('Marie Dupont').first().click();
   await c.getByText('FICHE CLIENT').waitFor();
+  const licenseId = (await c.getByText(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/).first().textContent()).trim();
   await shot(c, 'p-07-fiche-controle');
   await c.getByRole('button', { name: '+7 jours' }).click();
   await c.getByText('7 jours ajoutés').waitFor({ timeout: 10000 });
@@ -150,8 +151,10 @@ function attach(page, name, errors) {
   console.log('Créateur : client bloqué, son application se bloque');
   await c.getByRole('button', { name: 'Retirer ce client du tableau de bord' }).click();
   await c.getByText('Client retiré du tableau de bord').waitFor({ timeout: 10000 });
-  await c.getByLabel('Rechercher un client').fill('');
-  if (await c.getByText('Marie Dupont').count()) throw new Error('le client retiré est encore dans la liste');
+  // Recherche par identifiant de licence (unique) : le client n'est plus dans « Tous »…
+  await c.getByLabel('Rechercher un client').fill(licenseId);
+  await c.getByText('Aucun client dans cette liste').waitFor();
+  // … mais il est dans « Retirés ».
   await c.getByRole('button', { name: /^Retirés/ }).click();
   await c.getByText('Marie Dupont').first().waitFor();
   console.log('Créateur : client retiré du tableau de bord (retrouvable dans « Retirés »)');
