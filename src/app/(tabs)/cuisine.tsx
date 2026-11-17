@@ -3,14 +3,17 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { Emoji3D } from '../../components/Emoji3D';
+import { PrinterBar } from '../../components/PrinterBar';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { useToast } from '../../components/Toast';
-import { Button, Empty, SectionTitle, Segmented } from '../../components/ui';
+import { usePrint } from '../../components/usePrint';
+import { Button, Empty, IconButton, SectionTitle, Segmented } from '../../components/ui';
 import { setLinesStatus } from '../../store/actions';
 import { kitchenTickets, type Ticket } from '../../store/selectors';
 import { useNow, useStore } from '../../store/StoreProvider';
 import type { LineStatus, OrderLine, Station } from '../../store/types';
 import { colors, fonts, lineStatusStyle, screenBg } from '../../theme';
+import { kitchenDoc } from '../../ticket/kitchen';
 import { formatElapsed, formatTime } from '../../utils/format';
 import { haptic } from '../../utils/haptics';
 
@@ -39,6 +42,7 @@ export default function KitchenScreen() {
   const station = fixed ?? chosen;
 
   const toast = useToast();
+  const print = usePrint();
   const kitchen = useMemo(() => kitchenTickets(state, 'cuisine', now), [state, now]);
   const bar = useMemo(() => kitchenTickets(state, 'bar', now), [state, now]);
   // Emoji de chaque article (ou de sa catégorie) pour illustrer les tickets.
@@ -77,6 +81,7 @@ export default function KitchenScreen() {
             />
           )}
         </ScreenHeader>
+        <PrinterBar />
         {active.length === 0 ? (
           <Empty
             icon={station === 'cuisine' ? 'restaurant-outline' : 'wine-outline'}
@@ -136,6 +141,7 @@ export default function KitchenScreen() {
                       <Button small variant="secondary" title="Commencer" icon="flame-outline" onPress={() => update(t, pending, 'en_preparation')} style={styles.flex} />
                     ) : null}
                     <Button small variant="success" title="Prêt" icon="checkmark" onPress={() => update(t, open, 'pret')} style={styles.flex} />
+                    <IconButton icon="print-outline" label={`Imprimer le bon ${t.order.label}`} onPress={() => void print(kitchenDoc(t))} />
                   </View>
                 </View>
               </View>
@@ -214,7 +220,7 @@ const styles = StyleSheet.create({
   lineQty: { fontWeight: '800' },
   lineNote: { fontSize: 14, color: colors.danger, fontWeight: '700', marginTop: 2 },
   lineStatus: { fontSize: 12, fontWeight: '700' },
-  ticketActions: { flexDirection: 'row', gap: 8, padding: 10 },
+  ticketActions: { flexDirection: 'row', gap: 8, padding: 10, alignItems: 'center' },
   done: { paddingHorizontal: 5, marginTop: 12 },
   doneRow: {
     flexDirection: 'row',

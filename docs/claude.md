@@ -2,7 +2,7 @@
 
 > Source de vérité pour toute session de développement assisté par IA.
 > Chargée automatiquement par `CLAUDE.md`. À tenir à jour après chaque modification importante (voir CLAUDE.md § 4).
-> Dernière mise à jour : 2026-11-15 (design verre sombre, photos de produits).
+> Dernière mise à jour : 2026-11-17 (historique par période, impression Bluetooth / Wi-Fi, bons cuisine automatiques).
 
 ## 1. Le produit en bref
 
@@ -42,6 +42,7 @@ src/
     (tabs)/gestion.tsx      Gestion (derrière ManagerGate = code gérant)
     commande/[id].tsx       Prise de commande, encaissement, ticket (le plus gros écran)
     equipe.tsx              Profil de l’appareil, lobby créer/rejoindre, QR code
+    imprimante.tsx          Imprimante de l’appareil (Bluetooth, Wi-Fi Epson, AirPrint) : sans code gérant (cuisinier)
     connexion.tsx           Connexion d’un employé par code personnel → son poste
     abonnement.tsx          Formules, calendrier (rappel orange, fin rouge), paiement
     createur.tsx            Espace créateur : connexion mot de passe, à traiter, clients, paiements, réglages
@@ -52,10 +53,12 @@ src/
     ops.ts                  Opérations rejouables `Op` + réducteur `reduce` (cœur de la logique)
     actions.ts              Créateurs d’opérations (ids, horodatages)
     selectors.ts            Calculs dérivés (totaux, TVA, stats, tickets cuisine, clôtures)
+    stats.ts                Rapport par période (jour/semaine lundi/mois/année) : CA, TVA par taux, barres,
+                            serveurs, catégories, articles, reprise des clôtures Z, export CSV
     defaults.ts             Données de démo, `normalize` (migration des anciennes données)
     StoreProvider.tsx       État, sauvegarde, boucle de synchro, session gérant, clôture de minuit, useNow
     lobby.ts                `isLobbyMember` : employé (a rejoint) ou gérant (a créé le lobby)
-    store.test.ts           Tests unitaires (48)
+    store.test.ts           Tests unitaires (+ stats.test.ts, print/print.test.ts : 60 au total)
   sync/backend.ts           Appels RPC Supabase, liens d’invitation
   sync/scan.ts              Lecture d’un QR code scanné (lien d’invitation ou code)
   notify/                   alerts.ts (détection, pure), sound.ts (bips, vibration), system.ts (notifications via service worker)
@@ -64,10 +67,16 @@ src/
   license/dashboard.ts      Calculs de l’Espace créateur (à traiter, santé des licences, chiffres)
   license/useLicenseServer.ts  Hooks : prix/coordonnées, activation d’une clé, contrôle régulier de la licence
   license/access.ts         Droits gérant/admin, codes employés
-  ticket/                   doc.ts (ticket de caisse, clôture Z), layout.ts (colonnes) : affichage à l’écran uniquement
+  ticket/                   doc.ts (ticket de caisse, clôture Z), kitchen.ts (bon cuisine/bar, page d’essai),
+                            report.ts (rapport de période), layout.ts (colonnes)
+  print/                    escpos.ts (octets ESC/POS, PC858), epos.ts (Epson ePOS-Print XML), html.ts (AirPrint),
+                            bluetooth.ts (Web Bluetooth), index.ts (printDoc), auto.ts (bons à imprimer, pur),
+                            settings.ts (réglages de l’appareil), status.ts (dernier résultat)
   components/               UI partagée (ui.tsx = boutons, champs, pavé numérique…), écrans de verrouillage, feuilles ;
                             PaymentFlow.tsx (paiement client), CheckoutSheet.tsx (encaissement + TVA),
-                            CreatorGate.tsx (code créateur), creator/ (fiches de l’Espace créateur)
+                            CreatorGate.tsx (code créateur), creator/ (fiches de l’Espace créateur),
+                            stats/ (graphique, période, rapport), AutoPrinter.tsx (impression auto des bons, racine),
+                            PrinterBar.tsx (bandeau Cuisine), usePrint.ts (bouton Imprimer)
   labels.ts                 Libellés sans React Native (utilisables dans les tests)
   theme.ts                  Thème « verre sombre » : couleurs, polices, fonds (`screenBg`, `heroGlow`, `frosted`, `accentGradient`), `readableOn`
   config.ts                 Prix, empreintes des codes, IBAN, support, serveur intégré
@@ -119,7 +128,8 @@ docs/captures/              Captures d’écran du README
 - Cuisine / Bar : tickets par envoi, chrono, retard en rouge, avancement des lignes, rappel des tickets prêts.
 - Encaissement : **TVA obligatoire 0/6/12/21 % ajoutée au montant**, pourboire (5/10/15 %, arrondi, libre), remise %, partage, carte/espèces/autre, monnaie à rendre.
 - Ticket de caisse à l’écran : HT, TVA au taux choisi, TTC, remise, pourboire, rendu, N° de TVA, message de bas de ticket.
-- Historique & statistiques : aujourd’hui / clôtures / tout, pourboires, remises, **TVA collectée par taux**, moyens de paiement, meilleures ventes.
+- Historique & statistiques (2026-11-17) : rapport par **jour / semaine / mois / année** avec ‹ › et « Revenir à aujourd’hui » ; CA TTC et HT, tickets, ticket moyen, couverts, moyenne par couvert, pourboires, remises, annulations, **évolution vs période précédente** ; graphique du CA par heure / jour / mois (meilleur moment) ; TVA par taux, paiements, serveurs, catégories, top 10 ; onglets Tickets et Clôtures ; **export CSV** pour le comptable ; rapport imprimable ; jours aux tickets effacés repris depuis leur clôture Z.
+- Impression (ré-ajoutée à la demande du propriétaire le 2026-11-17) : écran `/imprimante` par appareil, sans code gérant. Bluetooth BLE ESC/POS (Chrome Android/ordinateur), **Wi-Fi Epson ePOS-Print** (iPhone compris, confirmation de l’imprimante), AirPrint / fenêtre système. Papier 58/80 mm, sans accents, impression test. **Bons cuisine/bar imprimés automatiquement** à leur arrivée (lobby), ticket de caisse auto après encaissement (option), boutons Imprimer (ticket, clôture, rapport, bon).
 - Clôture automatique à minuit, avec rattrapage à la réouverture.
 - Gestion : identité & logo (avec N° de TVA), carte complète (articles, catégories, emojis 3D, choix, 14 allergènes, disponibilité, ordre), tables & zones, équipe & postes, préférences, données (protégées par le code créateur).
 - Code gérant : ouverture auto, blocage progressif, changement avec l’ancien code, sécurité Automatique / inactivité / jamais.
@@ -136,15 +146,18 @@ docs/captures/              Captures d’écran du README
 - Photos de produits : galerie ou appareil photo, recadrage carré 240 px JPEG, affichées à la place de l’emoji (carte, écran de commande).
 - Contact support WhatsApp / téléphone 24 h/24.
 - PWA Netlify installable sur iPhone ; mise en page vérifiée du 320 px à l’iPad.
-- Outillage : `npm run verify` (types + lint + tests), `npm run e2e` (5 vérifications : paiement, service, abonnement + lobby, écrans, serveur), mémoire IA (ce fichier + CLAUDE.md).
+- Outillage : `npm run verify` (types + lint + tests), `npm run e2e` (5 vérifications : paiement, service avec imprimantes simulées, abonnement + lobby, écrans, serveur), mémoire IA (ce fichier + CLAUDE.md).
 
 ### Retiré à la demande du propriétaire (2026-11-11)
-- Toute l’impression (Bluetooth ESC/POS, AirPrint, écran « Imprimante & tickets », impression automatique, boutons « Imprimer », rapport imprimable) et l’option « Addition ». Le ticket de caisse et les clôtures restent **affichés** à l’écran.
+- Toute l’impression (… **ré-ajoutée le 2026-11-17** à sa demande, voir ci-dessus) et l’option « Addition » (toujours retirée).
 - Le réglage du taux de TVA dans la Gestion (remplacé par le choix à l’encaissement).
 - L’activation par les anciens codes (admin à vie, `M…`, `VIE-…`) et la génération locale de codes ; dans l’administration locale : licence, coordonnées bancaires, démo, liens de paiement.
 
 ### En cours 🚧
 - Réduction progressive des 39 avertissements lint (voir § 6).
+
+### Refusé
+- 2026-11-17 : « sélectionner ce qui est déclaré ou pas » (masquer des ventes au fisc, accès par code créateur). **Refusé : fraude fiscale** (en Belgique, logiciel de suppression de ventes interdit, caisse enregistrée obligatoire en restauration). Ne pas implémenter, même sous un autre nom. Alternatives proposées : repas du personnel / offerts enregistrés comme tels, export CSV pour le comptable.
 
 ### Restant / idées 📋 (par priorité ; rien n’est engagé sans l’accord du propriétaire)
 1. **Mise en service du serveur** : URL et clé publique reçues le 2026-11-14 (voir § 8), zip reconstruit avec. À confirmer par le propriétaire : `schema.sql` exécuté, mot de passe défini, premier paiement de test réussi (le réseau de l’environnement cloud bloque `*.supabase.co` : impossible de vérifier d’ici).
@@ -171,6 +184,7 @@ docs/captures/              Captures d’écran du README
 | D14 | Code créateur (empreinte) pour supprimer des données | Seul le propriétaire peut effacer | Ne jamais écrire le code en clair dans le dépôt |
 | D15 | Thème sombre unique dans `theme.ts` ; effets de verre (dégradés, flou) réservés au web via `webOnly` | La cible est la PWA ; le flou sur chaque carte ralentirait les listes | Tout texte est clair ; seul `colors.onAccent` est foncé (sur accent ou couleur vive). Fond blanc interdit hors « papier » du ticket. Flou (`frosted`) seulement sur les éléments fixes |
 | D16 | Photo de produit = data URI JPEG 240 px dans `MenuItem.photo` | Pas de stockage de fichiers à gérer, synchro lobby gratuite | `addItem` retire la photo des lignes de commande ; ne pas augmenter la taille (limite ≈ 5 Mo du stockage web) |
+| D17 | Impression sans serveur : Bluetooth (Web Bluetooth) et Wi-Fi Epson ePOS-Print (HTTP(S) direct vers l’imprimante) en ESC/POS ; AirPrint par la fenêtre système | Une PWA ne peut pas ouvrir de connexion TCP 9100 ; Safari iOS n’a pas Web Bluetooth | Seuls Bluetooth et ePOS impriment sans geste ; tester sur une vraie imprimante avant de le promettre à un client ; e2e avec imprimantes simulées (`fake-printer.js`, faux `navigator.bluetooth`) |
 | D10 | Lint Expo avec les règles « React Compiler » en avertissement | Le React Compiler n’est pas activé ; le code utilise volontairement des refs à jour et `Date.now` pour les chronos | 0 erreur exigée ; avertissements à réduire progressivement |
 | D11 | Libellés sans React Native dans `src/labels.ts` | Les tests `tsx` ne peuvent pas importer React Native | La logique testée ne doit pas importer `react-native` |
 
@@ -211,6 +225,12 @@ npm start               # serveur de développement Expo
 
 > Une entrée par session, la plus récente en haut. Pour voir ce qui a changé depuis la dernière mise à jour de ce fichier :
 > `git log --oneline "$(git log -1 --format=%h -- docs/claude.md)"..HEAD`
+
+### 2026-11-17 — Historique par période, impression Bluetooth / Wi-Fi, bons cuisine automatiques
+- Historique & statistiques refait (`store/stats.ts`, `components/stats/`) : voir § 4.
+- Impression ré-ajoutée (demande du propriétaire) : `src/print/`, écran `/imprimante` accessible au cuisinier (bandeau sur l’écran Cuisine, bouton dans Équipe › Cet appareil, Gestion › Imprimante). `AutoPrinter` (racine) imprime chaque nouvel envoi du poste une seule fois ; rien n’est imprimé pour les bons déjà présents à l’ouverture.
+- Refusé : l’option « déclarer ou non » des ventes (fraude fiscale), voir § 4 › Refusé.
+- Limites dites au propriétaire : pas de test sur une vraie imprimante ici ; Bluetooth impossible sur iPhone (Safari) ; Wi-Fi seulement Epson ePOS-Print, certificat de l’imprimante à accepter une fois ; l’app doit rester ouverte sur l’appareil cuisine.
 
 ### 2026-11-16 — Alertes de service, contrôle total des clients
 - Alertes : voir § 3 point 9. Tests unitaires de la détection ; e2e : bannière « Nouvelle commande en cuisine » et « Prêt à servir ».

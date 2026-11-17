@@ -4,6 +4,7 @@ import type { TicketDoc } from '../ticket/doc';
 import { cleanText, formatRow, TICKET_WIDTH, wrap } from '../ticket/layout';
 import { colors } from '../theme';
 import { Button, FormModal } from './ui';
+import { usePrint } from './usePrint';
 
 const MONO = Platform.select({ ios: 'Courier', android: 'monospace', default: '"Courier New", Courier, monospace' });
 
@@ -46,12 +47,14 @@ interface Props {
 
 /** Fenêtre qui affiche un ticket (ticket de caisse, clôture Z). */
 export function TicketPreview({ doc, onClose, closeLabel = 'Fermer' }: Props) {
+  const print = usePrint();
   if (!doc) return null;
   return (
     <FormModal visible title={doc.title} onClose={onClose}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollBody}>
         <PaperTicket doc={doc} />
       </ScrollView>
+      <Button title="Imprimer" icon="print-outline" variant="secondary" onPress={() => void print(doc)} />
       <Button title={closeLabel} large onPress={onClose} />
     </FormModal>
   );

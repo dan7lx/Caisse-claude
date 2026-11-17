@@ -139,6 +139,7 @@ function ManagementScreen() {
           chevron
           onPress={() => router.push('/equipe')}
         />
+        <ListRow emoji="🖨️" title="Imprimante" subtitle="Bluetooth, Wi-Fi ou AirPrint · bons cuisine automatiques" chevron onPress={() => router.push('/imprimante')} />
       </Group>
 
       <SectionTitle>Activité & abonnement</SectionTitle>

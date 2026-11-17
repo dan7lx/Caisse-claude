@@ -1,143 +1,94 @@
 import { Stack } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useCreatorCode } from '../../components/CreatorGate';
 import { Emoji3D } from '../../components/Emoji3D';
 import { ManagerGate } from '../../components/ManagerGate';
+import { PeriodPicker } from '../../components/stats/ReportParts';
+import { ReportView } from '../../components/stats/ReportView';
 import { TicketPreview } from '../../components/TicketPreview';
-import { Badge, Button, Card, confirm, Empty, Notice, SectionTitle, Segmented } from '../../components/ui';
-import { closureDoc, receiptDoc, type TicketDoc } from '../../ticket/doc';
+import { useToast } from '../../components/Toast';
+import { Badge, Button, confirm, Empty, Notice, notify, Segmented } from '../../components/ui';
 import { clearHistory } from '../../store/actions';
-import { orderTotal, salesStats, startOfDay } from '../../store/selectors';
+import { dayKey, orderTotal } from '../../store/selectors';
+import { buildReport, type Period, type PeriodKind, periodOf, reportCsv, shiftPeriod } from '../../store/stats';
 import { useStore } from '../../store/StoreProvider';
-import type { PaymentMethod } from '../../store/types';
+import { closureDoc, receiptDoc, type TicketDoc } from '../../ticket/doc';
+import { reportDoc } from '../../ticket/report';
 import { colors, fonts, paymentLabel, screenBg } from '../../theme';
+import { saveTextFile } from '../../utils/download';
 import { formatDate, formatPrice, formatTime } from '../../utils/format';
 
-type Period = 'jour' | 'clotures' | 'tout';
+type Tab = 'rapport' | 'tickets' | 'clotures';
 
 function HistoryScreen() {
   const { state, dispatch } = useStore();
-  const [period, setPeriod] = useState<Period>('jour');
+  const toast = useToast();
+  const [tab, setTab] = useState<Tab>('rapport');
+  const [period, setPeriod] = useState<Period>(() => periodOf('jour', Date.now()));
   const [preview, setPreview] = useState<TicketDoc | null>(null);
   const creator = useCreatorCode();
-  const currency = state.settings.currency;
-  const p = (n: number) => formatPrice(n, currency);
+  const p = (n: number) => formatPrice(n, state.settings.currency);
 
-  const closed = state.orders
-    .filter((o) => o.status !== 'ouverte')
-    .filter((o) => period === 'tout' || (o.paidAt ?? 0) >= startOfDay())
-    .sort((a, b) => (b.paidAt ?? 0) - (a.paidAt ?? 0));
-  const stats = salesStats(closed);
+  const report = useMemo(() => buildReport(state, period), [state, period]);
+  const previous = useMemo(() => buildReport(state, shiftPeriod(period, -1)), [state, period]);
+  const now = Date.now();
+  const isCurrent = now >= period.start && now < period.end;
   const closures = [...state.closures].reverse();
+
+  const exportCsv = async () => {
+    try {
+      const name = `ventes-${period.kind}-${dayKey(period.start)}.csv`;
+      const how = await saveTextFile(name, reportCsv(state, report));
+      toast(how === 'partage' ? 'Export prêt à partager' : `Fichier ${name} téléchargé`, '📤');
+    } catch (e) {
+      notify('Export impossible', e instanceof Error ? e.message : 'Réessayez.');
+    }
+  };
 
   return (
     <View style={styles.screen}>
       <Stack.Screen options={{ title: 'Historique & stats' }} />
       <ScrollView contentContainerStyle={styles.content}>
-        <Segmented<Period>
-          value={period}
-          onChange={setPeriod}
+        <Segmented<Tab>
+          value={tab}
+          onChange={setTab}
           options={[
-            { value: 'jour', label: 'Aujourd’hui' },
+            { value: 'rapport', label: 'Rapport' },
+            { value: 'tickets', label: `Tickets (${report.orders.length})` },
             { value: 'clotures', label: `Clôtures (${state.closures.length})` },
-            { value: 'tout', label: 'Tout' },
           ]}
         />
 
-        {period === 'clotures' ? (
+        {tab !== 'clotures' ? (
+          <PeriodPicker
+            period={period}
+            isCurrent={isCurrent}
+            onKind={(kind: PeriodKind) => setPeriod(periodOf(kind, Math.min(Date.now(), period.end - 1)))}
+            onShift={(d) => setPeriod(shiftPeriod(period, d))}
+            onToday={() => setPeriod(periodOf(period.kind, Date.now()))}
+          />
+        ) : null}
+
+        {tab === 'rapport' ? (
           <>
-            <Notice title="Clôture automatique à minuit">
-              Chaque nuit à minuit, la journée est clôturée (Z de caisse) et le chiffre du jour repart à 0 €. Touchez une
-              clôture pour la voir.
-            </Notice>
-            {closures.length === 0 ? <Empty icon="time-outline" emoji="🗓️" title="Aucune clôture pour l’instant" subtitle="La première aura lieu ce soir à minuit." /> : null}
-            {closures.map((z) => (
-              <Pressable
-                key={z.date}
-                accessibilityRole="button"
-                accessibilityLabel={`Clôture du ${z.date.split('-').reverse().join('/')}`}
-                onPress={() => setPreview(closureDoc(state, z))}
-                style={({ pressed }) => [styles.closure, pressed && styles.pressed]}
-              >
-                <Emoji3D emoji="🧾" size={36} />
-                <View style={styles.flex}>
-                  <Text style={styles.closureDate}>Z du {z.date.split('-').reverse().join('/')}</Text>
-                  <Text style={styles.meta}>
-                    {z.count} ticket(s) · {z.guests} couverts{z.tips ? ` · pourboires ${p(z.tips)}` : ''}
-                  </Text>
-                </View>
-                <Text style={styles.closureAmount}>{p(z.revenue)}</Text>
-              </Pressable>
-            ))}
+            <ReportView report={report} previous={previous} format={p} />
+            <View style={styles.actions}>
+              <Button title="Voir / imprimer le rapport" icon="print-outline" onPress={() => setPreview(reportDoc(state, report, Date.now()))} style={styles.flex} />
+              <Button title="Exporter (CSV)" icon="download-outline" variant="secondary" onPress={exportCsv} style={styles.flex} />
+            </View>
+            <Text style={styles.hint}>
+              L’export CSV (une ligne par ticket : HT, taux et montant de TVA, TTC, paiement) s’ouvre dans Excel ou Numbers, et
+              peut être envoyé à votre comptable.
+            </Text>
           </>
-        ) : (
+        ) : null}
+
+        {tab === 'tickets' ? (
           <>
-            <View style={styles.stats}>
-              <Stat emoji="💰" label="Chiffre d’affaires" value={p(stats.revenue)} />
-              <Stat emoji="🧾" label="Tickets" value={String(stats.count)} />
-            </View>
-            <View style={styles.stats}>
-              <Stat emoji="💝" label="Pourboires" value={p(stats.tips)} />
-              <Stat emoji="📊" label="Ticket moyen" value={p(stats.average)} />
-            </View>
-            <View style={styles.stats}>
-              <Stat emoji="🪑" label="Couverts" value={String(stats.guests)} />
-              <Stat emoji="🏷️" label="Remises" value={p(stats.discounts)} />
-            </View>
-            {stats.vat ? (
-              <View style={styles.stats}>
-                <Stat emoji="🏛️" label="TVA collectée" value={p(stats.vat)} />
-                <Stat emoji="📒" label="Chiffre d’affaires HT" value={p(stats.revenue - stats.vat)} />
-              </View>
-            ) : null}
-            {Object.keys(stats.vatByRate).length ? (
-              <>
-                <SectionTitle>TVA par taux</SectionTitle>
-                <Card style={styles.card}>
-                  {Object.keys(stats.vatByRate)
-                    .sort((a, b) => Number(a) - Number(b))
-                    .map((r) => (
-                      <View key={r} style={styles.kv}>
-                        <Text style={styles.k}>TVA {r} %</Text>
-                        <Text style={styles.v}>{p(stats.vatByRate[r])}</Text>
-                      </View>
-                    ))}
-                </Card>
-              </>
-            ) : null}
-
-            <SectionTitle>Encaissé par moyen de paiement</SectionTitle>
-            <Card style={styles.card}>
-              {(Object.keys(paymentLabel) as PaymentMethod[]).map((m) => (
-                <View key={m} style={styles.kv}>
-                  <Text style={styles.k}>{paymentLabel[m]}</Text>
-                  <Text style={styles.v}>{p(stats.byPayment[m])}</Text>
-                </View>
-              ))}
-              <View style={[styles.kv, styles.kvTotal]}>
-                <Text style={[styles.k, styles.bold]}>Total encaissé (pourboires compris)</Text>
-                <Text style={styles.v}>{p(stats.revenue + stats.tips)}</Text>
-              </View>
-            </Card>
-
-            <SectionTitle>Meilleures ventes</SectionTitle>
-            <Card style={styles.card}>
-              {stats.topItems.length === 0 ? <Text style={styles.k}>Aucune vente</Text> : null}
-              {stats.topItems.map((i, idx) => (
-                <View key={i.name} style={styles.kv}>
-                  <Text style={styles.k}>
-                    {idx + 1}. {i.name} <Text style={styles.qty}>× {i.qty}</Text>
-                  </Text>
-                  <Text style={styles.v}>{p(i.total)}</Text>
-                </View>
-              ))}
-            </Card>
-
-            <SectionTitle>Tickets (touchez pour les voir)</SectionTitle>
-            {closed.length === 0 ? <Empty icon="time-outline" emoji="🧾" title="Aucune commande clôturée" /> : null}
-            {closed.map((o) => (
+            {report.orders.length === 0 ? <Empty icon="time-outline" emoji="🧾" title="Aucun ticket sur cette période" /> : null}
+            {report.orders.map((o) => (
               <Pressable
                 key={o.id}
                 accessibilityRole="button"
@@ -166,7 +117,37 @@ function HistoryScreen() {
               </Pressable>
             ))}
           </>
-        )}
+        ) : null}
+
+        {tab === 'clotures' ? (
+          <>
+            <Notice title="Clôture automatique à minuit">
+              Chaque nuit à minuit, la journée est clôturée (Z de caisse) et le chiffre du jour repart à 0 €. Touchez une
+              clôture pour la voir ou l’imprimer.
+            </Notice>
+            {closures.length === 0 ? (
+              <Empty icon="time-outline" emoji="🗓️" title="Aucune clôture pour l’instant" subtitle="La première aura lieu ce soir à minuit." />
+            ) : null}
+            {closures.map((z) => (
+              <Pressable
+                key={z.date}
+                accessibilityRole="button"
+                accessibilityLabel={`Clôture du ${z.date.split('-').reverse().join('/')}`}
+                onPress={() => setPreview(closureDoc(state, z))}
+                style={({ pressed }) => [styles.closure, pressed && styles.pressed]}
+              >
+                <Emoji3D emoji="🧾" size={36} />
+                <View style={styles.flex}>
+                  <Text style={styles.closureDate}>Z du {z.date.split('-').reverse().join('/')}</Text>
+                  <Text style={styles.meta}>
+                    {z.count} ticket(s) · {z.guests} couverts{z.tips ? ` · pourboires ${p(z.tips)}` : ''}
+                  </Text>
+                </View>
+                <Text style={styles.closureAmount}>{p(z.revenue)}</Text>
+              </Pressable>
+            ))}
+          </>
+        ) : null}
 
         {state.orders.some((o) => o.status !== 'ouverte') ? (
           <Button
@@ -193,18 +174,6 @@ function HistoryScreen() {
   );
 }
 
-function Stat({ emoji, label, value }: { emoji: string; label: string; value: string }) {
-  return (
-    <View style={styles.stat}>
-      <Emoji3D emoji={emoji} size={26} />
-      <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>
-        {value}
-      </Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 export default function HistoryRoute() {
   return (
     <ManagerGate>
@@ -216,27 +185,9 @@ export default function HistoryRoute() {
 const styles = StyleSheet.create({
   screen: { flex: 1, ...screenBg },
   flex: { flex: 1 },
-  content: { padding: 16, paddingBottom: 48, width: '100%', maxWidth: 820, alignSelf: 'center', gap: 4 },
-  stats: { flexDirection: 'row', gap: 10, marginTop: 10 },
-  stat: {
-    flex: 1,
-    minWidth: 0,
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 12,
-    gap: 2,
-  },
-  statValue: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 21, color: colors.text },
-  statLabel: { fontSize: 12, color: colors.muted },
-  card: { gap: 10 },
-  kv: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
-  kvTotal: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
-  k: { color: colors.text, fontSize: 15, flexShrink: 1 },
-  v: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  bold: { fontWeight: '800' },
-  qty: { color: colors.muted },
+  content: { padding: 16, paddingBottom: 48, width: '100%', maxWidth: 820, alignSelf: 'center', gap: 12 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 16 },
+  hint: { color: colors.muted, fontSize: 12, lineHeight: 17 },
   order: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -246,12 +197,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: 12,
-    marginBottom: 8,
   },
   pressed: { opacity: 0.75 },
   orderTitle: { fontWeight: '700', color: colors.text, fontSize: 15 },
   meta: { color: colors.muted, fontSize: 12, marginTop: 2 },
   right: { alignItems: 'flex-end' },
+  v: { color: colors.text, fontSize: 15, fontWeight: '700' },
   closure: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -261,7 +212,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: 14,
-    marginTop: 10,
   },
   closureDate: { fontFamily: fonts.display, fontVariant: ['lining-nums'], fontSize: 18, color: colors.text },
   closureAmount: { fontFamily: fonts.displayHeavy, fontVariant: ['lining-nums'], fontSize: 20, color: colors.text },

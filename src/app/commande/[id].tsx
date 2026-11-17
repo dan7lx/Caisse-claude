@@ -17,6 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type CheckoutResult, CheckoutSheet } from '../../components/CheckoutSheet';
 import { Emoji3D } from '../../components/Emoji3D';
 import { TicketPreview } from '../../components/TicketPreview';
+import { usePrint } from '../../components/usePrint';
+import { printerOf } from '../../print/settings';
 import { receiptDoc, type TicketDoc } from '../../ticket/doc';
 import { HeaderTitle } from '../../components/HeaderParts';
 import { MenuItemCard } from '../../components/MenuItemCard';
@@ -49,6 +51,8 @@ export default function OrderScreen() {
   const { width, small } = useLayout();
   const wide = width >= 900;
   const toast = useToast();
+  const print = usePrint();
+  const autoReceipt = printerOf(device).autoReceipt;
 
   const order = state.orders.find((o) => o.id === id);
   const currency = state.settings.currency;
@@ -182,6 +186,7 @@ export default function OrderScreen() {
     setPayOpen(false);
     setTicketOpen(false);
     setReceipt(doc);
+    if (autoReceipt) void print(doc);
   };
 
   const freeTables = state.tables.filter(

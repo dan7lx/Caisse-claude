@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 
 import { AlertCenter } from '../components/AlertCenter';
+import { AutoPrinter } from '../components/AutoPrinter';
 import { LicenseGate } from '../components/LicenseGate';
 import { ToastProvider } from '../components/Toast';
 import { StoreProvider } from '../store/StoreProvider';
@@ -34,6 +35,7 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'fade' }} />
           </Stack>
           <AlertCenter />
+          <AutoPrinter />
         </LicenseGate>
       </ToastProvider>
     </StoreProvider>

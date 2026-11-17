@@ -48,12 +48,19 @@ Elle fonctionne sur **iPhone, Android** et **navigateur** (à installer sur l’
 
 **Cuisine / Bar** : un ticket par envoi, avec chronomètre. Le ticket passe en rouge en cas de retard. Toucher une ligne la fait avancer : envoyé → en préparation → prêt. Les tickets prêts récemment peuvent être rappelés.
 
+**Imprimante** (Gestion › Imprimante, ou bandeau « Imprimante » de l’écran Cuisine / Bar, sans code gérant) :
+- **Bluetooth** : imprimantes thermiques BLE ESC/POS, avec Chrome sur Android ou ordinateur (Safari sur iPhone ne permet pas le Bluetooth) ;
+- **Wi-Fi (Epson)** : imprimantes de caisse Epson compatibles ePOS-Print (TM-m30, TM-T20III, TM-T88…), aussi depuis un iPhone ; l’imprimante confirme chaque impression ;
+- **AirPrint / système** : fenêtre d’impression du téléphone (un geste par ticket) ;
+- papier 58 ou 80 mm, impression sans accents, impression test ;
+- **bons automatiques** : dans le lobby, l’appareil de la cuisine (ou du bar) imprime chaque commande envoyée par le serveur dès son arrivée ; ticket de caisse automatique après l’encaissement (option) ; bouton « Imprimer » sur chaque ticket, bon, clôture et rapport.
+
 **Gestion**, protégée par le **code gérant** :
 - **identité & logo** : le gérant ajoute le logo de son commerce (affiché sur le plan de salle, la Gestion et l’écran d’accueil), le nom, le slogan, l’adresse, le téléphone, le **N° de TVA de l’entreprise** et le message du bas de ticket ;
 - **carte complète** : articles avec **photo** (galerie ou appareil photo) ou emoji 3D, prix, description, **choix à la commande**, **14 allergènes**, disponibilité, duplication et ordre d’affichage ; catégories avec emoji, couleur et poste (cuisine ou bar) ;
 - tables et zones, **équipe & postes**, lobby de l’équipe ;
 - préférences (devise, alerte cuisine, retour au plan de salle, **sécurité / verrouillage**) ;
-- **historique & statistiques** : aujourd’hui, clôtures, tout ; chiffre d’affaires, tickets, couverts, ticket moyen, **pourboires**, remises, répartition par mode de paiement, meilleures ventes, **TVA collectée** (par taux) ;
+- **historique & statistiques** : rapport par **jour, semaine, mois ou année** (et périodes passées), chiffre d’affaires TTC et HT, tickets, couverts, ticket moyen, **pourboires**, remises, annulations, **évolution par rapport à la période précédente**, graphique du chiffre d’affaires par heure / jour / mois, **TVA collectée** par taux, paiements, ventes par serveur et par catégorie, meilleures ventes ; liste des tickets et des clôtures ; **export CSV** pour le comptable ; rapport imprimable ;
 - abonnement, code gérant ;
 - **données** : « Partir de zéro », « Recharger la carte de démonstration » et « Effacer l’historique des tickets » exigent le **code créateur** (réservé au créateur de l’application) ;
 - **contact** : en cas de souci ou de besoin d’aide, WhatsApp ou téléphone au **+32 465 53 88 69**, disponible 24 h/24.

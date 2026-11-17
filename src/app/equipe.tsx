@@ -154,6 +154,7 @@ export default function TeamScreen() {
           les boissons envoyées au bar. En quittant le lobby, l’application redevient complète.
         </Text>
         <AlertSettings />
+        <Button title="Imprimante de cet appareil" icon="print-outline" variant="secondary" onPress={() => router.push('/imprimante')} />
       </Card>
     </>
   );

@@ -27,7 +27,9 @@ node tests/e2e/serve.js dist >/dev/null &
 WEB=$!
 node tests/e2e/rest-server.js >/dev/null &
 API=$!
-trap 'kill $WEB $API 2>/dev/null' EXIT
+node tests/e2e/fake-printer.js >/dev/null &
+PRINTER=$!
+trap 'kill $WEB $API $PRINTER 2>/dev/null' EXIT
 sleep 1
 
 FAIL=0

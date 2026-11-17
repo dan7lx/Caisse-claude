@@ -238,5 +238,30 @@ export interface DeviceState {
   alerts?: { sound: boolean; system: boolean };
   /** Commande de paiement en cours de ce client (identifiant + jeton secret de suivi). */
   pendingPayment: PendingPayment | null;
+  /** Imprimante de cet appareil (absente = aucune). */
+  printer?: PrinterSettings;
+}
+
+/**
+ * Connexion de l'imprimante : Bluetooth (ESC/POS, Chrome sur Android / ordinateur), réseau Wi-Fi Epson
+ * (ePOS-Print, iPhone compris) ou fenêtre d'impression du système (AirPrint, imprimante Wi-Fi ou USB).
+ */
+export type PrinterMode = 'aucune' | 'bluetooth' | 'reseau' | 'systeme';
+
+/** Imprimante de cet appareil. */
+export interface PrinterSettings {
+  mode: PrinterMode;
+  /** Largeur du papier : 58 mm (32 caractères) ou 80 mm (48 caractères). */
+  paperWidth: 58 | 80;
+  /** Imprimer sans accents (imprimantes sans table de caractères européenne). */
+  asciiOnly: boolean;
+  /** Adresse IP de l'imprimante réseau (mode « reseau »). */
+  host: string;
+  /** Nom de la dernière imprimante Bluetooth (reconnexion). */
+  bluetoothName: string | null;
+  /** Imprimer chaque nouveau bon de commande à son arrivée (cuisine, bar). */
+  autoKitchen: boolean;
+  /** Imprimer le ticket de caisse après chaque encaissement. */
+  autoReceipt: boolean;
 }
 
